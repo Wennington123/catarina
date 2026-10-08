@@ -10,7 +10,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import dev.catarina.assistant.audio.AudioCapture
 import dev.catarina.assistant.core.CatarinaBrain
-import dev.catarina.assistant.core.Turn
+import dev.catarina.assistant.core.CatarinaBrain.Turn
 import dev.catarina.assistant.service.CatarinaService
 import dev.catarina.assistant.state.AssistantStateBus
 import dev.catarina.assistant.state.Phase

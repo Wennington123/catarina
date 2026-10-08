@@ -35,7 +35,7 @@ class CatarinaRecognitionService : RecognitionService() {
                 val text = json?.let { runCatching { JSONObject(it).optString("text") }.getOrDefault("") }.orEmpty()
 
                 listener.results(Bundle().apply {
-                    putStringArrayList(RecognitionService.RESULTS_RECOGNITION, arrayListOf(text))
+                    putStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION, arrayListOf(text))
                 })
                 listener.endOfSpeech()
             } catch (t: Throwable) {
