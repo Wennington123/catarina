@@ -1,0 +1,5 @@
+{
+  "_comment": "Codigos IR do seu ar-condicionado. Chave = '<modo>:<temp>' ou 'off'. Preencha com o padrao do seu modelo (ConsumerIrManager). Vazio = set_ac indisponivel pelo emissor interno.",
+  "off": { "freq": 38000, "pattern": [] },
+  "cool:22": { "freq": 38000, "pattern": [] }
+}

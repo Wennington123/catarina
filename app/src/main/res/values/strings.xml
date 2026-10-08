@@ -1,7 +1,15 @@
 <resources>
     <string name="app_name">Catarina</string>
     <string name="listen">Ouvir</string>
+    <string name="always_on">Sempre ouvindo</string>
+    <string name="grant">Dar permissões</string>
     <string name="status_idle">Pronta.</string>
-    <string name="status_downloading">Baixando modelos…</string>
+    <string name="status_downloading">Baixando %1$s… %2$d%%</string>
+    <string name="status_loading">Carregando modelos…</string>
     <string name="status_listening">Ouvindo…</string>
+    <string name="status_no_speech">Não ouvi nada.</string>
+    <string name="status_confirm">Confirma? %1$s</string>
+    <string name="status_error">Erro: %1$s</string>
+    <string name="notif_listening">Ouvindo a wake word…</string>
+    <string name="notif_channel">Catarina</string>
 </resources>

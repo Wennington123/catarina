@@ -304,5 +304,22 @@ O runner `android-arm64` foi executado direto no Termux com `needle3.cact`
 **Implicação:** o pipeline funciona ponta a ponta no device; o que falta para PT
 confiável é fine-tune com comandos reais da Catarina.
 
+### 14.1 Validação nativa do caminho do JNI
+
+Além do runner, foi compilado no próprio device um teste C (`scripts/engine_test.cpp`)
+que reproduz **exatamente** as chamadas do shim JNI (carregar os pesos da memória,
+`needle_init`, `needle_complete` com buffer de saída). Resultado no A32:
+
+```
+needle_load -> 0 (models=0x1)                 # modelo de texto
+needle_load(whistle 16919407 bytes) -> 0 (models=0x3)  # texto + fala
+needle_init -> 474                            # prefixo tokenizado
+needle_complete -> 40
+{"function_calls":[{"name":"set_torch","arguments":{"on":true}}],"confidence":0.8434}
+```
+
+Ou seja: o caminho que o APK usa (dois modelos no mesmo engine, saída em buffer)
+foi verificado no hardware alvo.
+
 ---
 *Catarina — assistente de voz nativo com Needle 3 + Whistle. Offline-first.*

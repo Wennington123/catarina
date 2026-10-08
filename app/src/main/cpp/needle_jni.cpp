@@ -1,6 +1,7 @@
 #include <jni.h>
 
 #include <cstdlib>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -147,6 +148,31 @@ Java_dev_catarina_assistant_engine_NeedleEngine_nativeEmbedText(JNIEnv* env, job
     if (out == nullptr) return nullptr;
     env->SetFloatArrayRegion(out, 0, rc, buf.data());
     return out;
+}
+
+JNIEXPORT jstring JNICALL
+Java_dev_catarina_assistant_engine_NeedleEngine_nativeStreamProcess(JNIEnv* env, jobject, jfloatArray pcm,
+                                                                    jstring language, jstring keywords,
+                                                                    jint out_capacity) {
+    if (pcm == nullptr) return nullptr;
+    const jsize n = env->GetArrayLength(pcm);
+    jfloat* data = env->GetFloatArrayElements(pcm, nullptr);
+    if (data == nullptr) return nullptr;
+    const std::string lang = to_std(env, language);
+    const std::string kw = to_std(env, keywords);
+    jstring result = call_with_output(env, out_capacity, [&](char* out, int cap) {
+        return needle_stream_transcribe_process(data, n, language != nullptr ? lang.c_str() : nullptr,
+                                                keywords != nullptr ? kw.c_str() : nullptr, out, cap);
+    });
+    env->ReleaseFloatArrayElements(pcm, data, JNI_ABORT);
+    return result;
+}
+
+JNIEXPORT jstring JNICALL
+Java_dev_catarina_assistant_engine_NeedleEngine_nativeStreamStop(JNIEnv* env, jobject, jint out_capacity) {
+    return call_with_output(env, out_capacity, [&](char* out, int cap) {
+        return needle_stream_transcribe_stop(out, cap);
+    });
 }
 
 }  // extern "C"

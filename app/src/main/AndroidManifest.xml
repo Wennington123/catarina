@@ -15,11 +15,15 @@
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.FLASHLIGHT" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
 
     <uses-feature android:name="android.hardware.microphone" android:required="true" />
+    <uses-feature android:name="android.hardware.consumerir" android:required="false" />
 
     <application
         android:name=".CatarinaApp"
@@ -44,7 +48,7 @@
             android:exported="false"
             android:foregroundServiceType="microphone" />
 
-        <!-- Assistente padrão do sistema (segurar botão assist) -->
+        <!-- Assistente padrao do sistema (segurar botao assist) -->
         <service
             android:name=".assistant.CatarinaVoiceInteractionService"
             android:exported="true"
@@ -54,6 +58,20 @@
                 android:resource="@xml/voice_interaction_service" />
             <intent-filter>
                 <action android:name="android.service.voice.VoiceInteractionService" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".assistant.CatarinaSessionService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VOICE_INTERACTION" />
+
+        <service
+            android:name=".assistant.CatarinaRecognitionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_SPEECH_RECOGNITION_SERVICE">
+            <intent-filter>
+                <action android:name="android.speech.RecognitionService" />
             </intent-filter>
         </service>
 
