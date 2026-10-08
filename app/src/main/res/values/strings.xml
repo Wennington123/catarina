@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Catarina</string>
+    <string name="listen">Ouvir</string>
+    <string name="status_idle">Pronta.</string>
+    <string name="status_downloading">Baixando modelos…</string>
+    <string name="status_listening">Ouvindo…</string>
+</resources>

@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.Catarina" parent="Theme.AppCompat.DayNight.NoActionBar" />
+</resources>

@@ -1,0 +1,117 @@
+[
+  {
+    "name": "set_wifi",
+    "description": "Liga ou desliga o Wi-Fi do aparelho.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "on": { "type": "boolean", "description": "true para ligar, false para desligar" }
+      },
+      "required": ["on"]
+    }
+  },
+  {
+    "name": "set_bluetooth",
+    "description": "Liga ou desliga o Bluetooth.",
+    "parameters": {
+      "type": "object",
+      "properties": { "on": { "type": "boolean" } },
+      "required": ["on"]
+    }
+  },
+  {
+    "name": "set_torch",
+    "description": "Liga ou desliga a lanterna do aparelho.",
+    "parameters": {
+      "type": "object",
+      "properties": { "on": { "type": "boolean" } },
+      "required": ["on"]
+    }
+  },
+  {
+    "name": "set_brightness",
+    "description": "Ajusta o brilho da tela.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "brilho em porcentagem"
+        }
+      },
+      "required": ["level"]
+    }
+  },
+  {
+    "name": "set_volume",
+    "description": "Ajusta o volume de um stream de audio.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "stream": {
+          "type": "string",
+          "enum": ["media", "ring", "alarm", "notification", "call"]
+        },
+        "level": { "type": "integer", "minimum": 0, "maximum": 100 }
+      },
+      "required": ["stream", "level"]
+    }
+  },
+  {
+    "name": "open_app",
+    "description": "Abre um aplicativo instalado pelo nome que o usuario fala.",
+    "parameters": {
+      "type": "object",
+      "properties": { "name": { "type": "string" } },
+      "required": ["name"]
+    }
+  },
+  {
+    "name": "set_ac",
+    "description": "Controla o ar-condicionado: liga/desliga, temperatura e modo.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "power": { "type": "boolean" },
+        "temp": { "type": "integer", "minimum": 16, "maximum": 30 },
+        "mode": { "type": "string", "enum": ["cool", "heat", "fan", "dry", "auto"] }
+      },
+      "required": ["power"]
+    }
+  },
+  {
+    "name": "notify",
+    "description": "Mostra uma notificacao ou lembrete.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "text": { "type": "string" }
+      },
+      "required": ["title", "text"]
+    }
+  },
+  {
+    "name": "send_sms",
+    "description": "Envia um SMS para um contato ou numero.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "to": { "type": "string" },
+        "text": { "type": "string" }
+      },
+      "required": ["to", "text"]
+    }
+  },
+  {
+    "name": "run_shell",
+    "description": "Executa um comando shell permitido (allowlist) no dispositivo.",
+    "parameters": {
+      "type": "object",
+      "properties": { "cmd": { "type": "string" } },
+      "required": ["cmd"]
+    }
+  }
+]

@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+build/
+local.properties
+
+# Android
+*.apk
+*.aab
+captures/
+.cxx/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Engine nativo (baixado, não versionado)
+app/src/main/cpp/android-*/
+app/src/main/assets/models/
+
+# Pesos / caches locais
+*.cact
+*.idx
+
+# OS
+.DS_Store
