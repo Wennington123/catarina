@@ -267,5 +267,42 @@ Com **root (Magisk)**, amplia: `svc wifi/bluetooth`, `settings put`, acesso a
 8. Decidir wake word (§8) e medir latência/RAM/bateria no A32.
 9. (Opcional) Fine-tune com dados reais → `.cact` tunado.
 
+## 14. Validação inicial (smoke test no Galaxy A32)
+
+O runner `android-arm64` foi executado direto no Termux com `needle3.cact`
+(29 MB) e o `tools.json` do repo. Os números abaixo vêm do próprio engine
+(`peak_ram_mb`, `prefill_tps`, `decode_tps`).
+
+**O engine roda bem no aparelho:** ~76 MB de RAM, prefill 55–220 tps, decode
+8–115 tps. Viável.
+
+**Achados que mudaram o design das tools:**
+
+1. **Descrições em inglês.** Com descrições em português o modelo não ligava
+   "flashlight" a "lanterna" e escolhia a ferramenta errada. As descrições agora
+   são em inglês (os nomes já eram).
+2. **`triggers` resolvem o roteamento.** Com >5 tools declaradas, o retrieval
+   pegava a ferramenta errada ("flashlight" → `set_bluetooth`). Adicionar
+   `triggers` (regex PT+EN) por ferramenta corrigiu o roteamento — inclusive em
+   português — sem fine-tune.
+3. **Português ainda precisa de fine-tune.** Pelo trigger a chamada sai certa,
+   mas com `confidence` perto de 0 (0.02–0.30) e às vezes duplicada/contraditória.
+   Para confiar em PT a sério, treinar com dados reais (`needle finetune`).
+4. **Cuidado com `triggers`:** um request que casa com trigger **emite a chamada
+   mesmo abaixo do piso de confiança**. O app precisa deduplicar chamadas e
+   exigir confirmação em ações sensíveis.
+
+**Amostra de resultados:**
+
+| Entrada | Saída | Conf. |
+|---|---|---|
+| `turn on the flashlight` | `set_torch(on=true)` | 0.84 |
+| `set brightness to 40` | `set_brightness(level=40)` | 0.94 |
+| `desliga o wifi` | `set_wifi(on=false)` | 0.26 |
+| `liga a lanterna` | `set_torch(on=true)` | 0.02 |
+
+**Implicação:** o pipeline funciona ponta a ponta no device; o que falta para PT
+confiável é fine-tune com comandos reais da Catarina.
+
 ---
 *Catarina — assistente de voz nativo com Needle 3 + Whistle. Offline-first.*

@@ -1,18 +1,20 @@
 [
   {
     "name": "set_wifi",
-    "description": "Liga ou desliga o Wi-Fi do aparelho.",
+    "description": "Turn the device Wi-Fi on or off.",
+    "triggers": ["\\b(wi-?fi|internet)\\b"],
     "parameters": {
       "type": "object",
       "properties": {
-        "on": { "type": "boolean", "description": "true para ligar, false para desligar" }
+        "on": { "type": "boolean", "description": "true to turn on, false to turn off" }
       },
       "required": ["on"]
     }
   },
   {
     "name": "set_bluetooth",
-    "description": "Liga ou desliga o Bluetooth.",
+    "description": "Turn Bluetooth on or off.",
+    "triggers": ["\\b(bluetooth)\\b"],
     "parameters": {
       "type": "object",
       "properties": { "on": { "type": "boolean" } },
@@ -21,7 +23,8 @@
   },
   {
     "name": "set_torch",
-    "description": "Liga ou desliga a lanterna do aparelho.",
+    "description": "Turn the flashlight (torch) on or off.",
+    "triggers": ["\\b(lanterna|flash|tocha|flashlight|torch)\\b"],
     "parameters": {
       "type": "object",
       "properties": { "on": { "type": "boolean" } },
@@ -30,7 +33,8 @@
   },
   {
     "name": "set_brightness",
-    "description": "Ajusta o brilho da tela.",
+    "description": "Set the screen brightness.",
+    "triggers": ["\\b(brilho|brightness)\\b"],
     "parameters": {
       "type": "object",
       "properties": {
@@ -38,7 +42,7 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 100,
-          "description": "brilho em porcentagem"
+          "description": "brightness in percent"
         }
       },
       "required": ["level"]
@@ -46,7 +50,8 @@
   },
   {
     "name": "set_volume",
-    "description": "Ajusta o volume de um stream de audio.",
+    "description": "Set the volume of an audio stream.",
+    "triggers": ["\\b(volume|som)\\b"],
     "parameters": {
       "type": "object",
       "properties": {
@@ -61,7 +66,8 @@
   },
   {
     "name": "open_app",
-    "description": "Abre um aplicativo instalado pelo nome que o usuario fala.",
+    "description": "Open an installed app by the name the user says.",
+    "triggers": ["\\b(abre|abrir|open|launch)\\b"],
     "parameters": {
       "type": "object",
       "properties": { "name": { "type": "string" } },
@@ -70,7 +76,8 @@
   },
   {
     "name": "set_ac",
-    "description": "Controla o ar-condicionado: liga/desliga, temperatura e modo.",
+    "description": "Control the air conditioner: power, temperature and mode.",
+    "triggers": ["\\b(ar[- ]condicionado|air[- ]?con(ditioner)?|clima)\\b"],
     "parameters": {
       "type": "object",
       "properties": {
@@ -83,7 +90,8 @@
   },
   {
     "name": "notify",
-    "description": "Mostra uma notificacao ou lembrete.",
+    "description": "Show a notification or reminder.",
+    "triggers": ["\\b(me lembra|lembrete|notifica|remind|reminder|notify)\\b"],
     "parameters": {
       "type": "object",
       "properties": {
@@ -95,7 +103,8 @@
   },
   {
     "name": "send_sms",
-    "description": "Envia um SMS para um contato ou numero.",
+    "description": "Send an SMS to a contact or number.",
+    "triggers": ["\\b(manda|envia|send)\\b.{0,24}\\b(sms|mensagem|message|texto)\\b"],
     "parameters": {
       "type": "object",
       "properties": {
@@ -107,7 +116,8 @@
   },
   {
     "name": "run_shell",
-    "description": "Executa um comando shell permitido (allowlist) no dispositivo.",
+    "description": "Run an allowed shell command on the device.",
+    "triggers": ["\\b(roda|executa|run)\\b.{0,24}\\b(comando|shell|command)\\b"],
     "parameters": {
       "type": "object",
       "properties": { "cmd": { "type": "string" } },
