@@ -16,8 +16,8 @@ O único acesso à rede é o download dos pesos no primeiro uso — depois disso
 | STT | Whistle (16.9 MB) | sim |
 | Intenção → ação | Needle 3 (8–29 MB) | sim |
 | Integração | Kotlin + JNI sobre a C API da Cactus | — |
-| TTS | `TextToSpeech` nativo | sim |
-| UI + mascote | Jetpack Compose (Canvas 100% código) | — |
+| TTS | `TextToSpeech` nativo + pitch infantil | sim |
+| UI + mascote | Jetpack Compose (Canvas pixel art, 100% código) | — |
 
 ## Estrutura
 
@@ -36,7 +36,7 @@ app/src/main/
     ├── service/             # CatarinaService (modelo quente + loop)
     ├── state/               # AssistantStateBus (fases p/ o mascote) + AppSettings
     ├── ui/                  # Compose: MainScreen, tema e bolha flutuante
-    │   └── mascot/          # BabyMascot — a bebezinha animada em Canvas
+    │   └── mascot/          # BabyMascot — a bebezinha em pixel art (Canvas, grid 64×64)
     ├── tile/                # Quick Settings tile (liga/desliga o contínuo)
     └── assistant/           # VoiceInteraction + Recognition services
 ```

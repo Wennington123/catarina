@@ -13,15 +13,25 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Canvas as GraphicsCanvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import dev.catarina.assistant.state.Phase
 import kotlin.math.PI
 import kotlin.math.abs
@@ -55,11 +65,19 @@ private const val HEAD_R = 0.26f
 private val TAU = (2.0 * PI).toFloat()
 
 /**
- * A bebezinha Catarina: desenhada e animada 100% por código (Canvas Compose).
- * Cada [Phase] tem uma reação própria — piscar/respirar em repouso, anel
- * pulsante ouvindo a wake word, boca sincronizada com o TTS, pulo com
- * confetti quando executa uma ação, carinha triste em erro/recusa e anel de
- * progresso durante o download dos pesos.
+ * Resolucao logica do sprite: o desenho inteiro e rasterizado num quadrado de
+ * [PIXEL_GRID] x [PIXEL_GRID] e depois ampliado com nearest-neighbor. E isso
+ * que da o aspecto pixel art (blocos duros em vez de bordas suaves). Diminua
+ * para pixels maiores, aumente para mais detalhe.
+ */
+private const val PIXEL_GRID = 64
+
+/**
+ * A bebezinha Catarina: desenhada e animada 100% por codigo, em estetica pixel
+ * art (rasteriza a cena num grid pequeno e amplia sem suavizar). Cada [Phase]
+ * tem uma reacao propria — piscar/respirar em repouso, anel pulsante ouvindo a
+ * wake word, boca sincronizada com o TTS, pulo com confetti quando executa uma
+ * acao, carinha triste em erro/recusa e anel de progresso durante o download.
  */
 @Composable
 fun BabyMascot(phase: Phase, progress: Float?, modifier: Modifier = Modifier) {
@@ -114,39 +132,73 @@ fun BabyMascot(phase: Phase, progress: Float?, modifier: Modifier = Modifier) {
     val thinkingAmt by animateFloatAsState(if (thinking) 1f else 0f, tween(200), label = "thinking")
     val speakingAmt by animateFloatAsState(if (speaking) 1f else 0f, tween(150), label = "speaking")
 
+    val grid = PIXEL_GRID
+    val sprite = remember(grid) { ImageBitmap(grid, grid) }
+    val spriteCanvas = remember(sprite) { GraphicsCanvas(sprite) }
+    val drawScope = remember { CanvasDrawScope() }
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+
     Canvas(modifier.aspectRatio(1f)) {
-        val s = size.minDimension
-        val cx = size.width / 2f
+        drawScope.draw(
+            density = density,
+            layoutDirection = layoutDirection,
+            canvas = spriteCanvas,
+            size = Size(grid.toFloat(), grid.toFloat()),
+        ) {
+            drawRect(
+                Color.Transparent,
+                topLeft = Offset.Zero,
+                size = Size(grid.toFloat(), grid.toFloat()),
+                blendMode = BlendMode.Clear,
+            )
 
-        // sombra no chão (clareia quando ela pula)
-        drawCircle(
-            Shadow,
-            radius = s * 0.19f * (1f - 0.25f * jump),
-            center = Offset(cx, s * 0.94f),
-        )
+            val s = grid.toFloat()
+            val cx = s / 2f
 
-        withTransform({
-            rotate(sadAmt * 5f, Offset(cx, s * 0.90f))
-            translate(0f, -jump * s * 0.10f)
-            translate(0f, -0.006f * s * speakingAmt * (0.5f - 0.5f * cos(TAU * clock * 2f)))
-            val br = 1f + 0.018f * (0.5f - 0.5f * cos(TAU * breathe))
-            scale(br, br, Offset(cx, s * 0.92f))
-        }) {
-            halo(ringAmt, clock, s, cx)
-            pigtail(s, cx, clock, sadAmt, speakingAmt * 5f + armUp * 4f, left = true)
-            pigtail(s, cx, clock, sadAmt, speakingAmt * 5f + armUp * 4f, left = false)
-            body(s, cx, armUp)
-            head(s, cx)
-            hair(s, cx)
-            ties(s, cx)
-            eyes(s, cx, blink, hearingAmt, thinkingAmt)
-            blush(s, cx)
-            mouth(s, cx, clock, sadAmt, speakingAmt)
-            thinkingDots(s, cx, thinkingAmt, clock)
+            // sombra no chao (clareia quando ela pula)
+            drawCircle(
+                Shadow,
+                radius = s * 0.19f * (1f - 0.25f * jump),
+                center = Offset(cx, s * 0.94f),
+            )
+
+            withTransform({
+                rotate(sadAmt * 5f, Offset(cx, s * 0.90f))
+                translate(0f, -jump * s * 0.10f)
+                translate(0f, -0.006f * s * speakingAmt * (0.5f - 0.5f * cos(TAU * clock * 2f)))
+                val br = 1f + 0.018f * (0.5f - 0.5f * cos(TAU * breathe))
+                scale(br, br, Offset(cx, s * 0.92f))
+            }) {
+                halo(ringAmt, clock, s, cx)
+                pigtail(s, cx, clock, sadAmt, speakingAmt * 5f + armUp * 4f, left = true)
+                pigtail(s, cx, clock, sadAmt, speakingAmt * 5f + armUp * 4f, left = false)
+                body(s, cx, armUp)
+                head(s, cx)
+                hair(s, cx)
+                ties(s, cx)
+                eyes(s, cx, blink, hearingAmt, thinkingAmt)
+                blush(s, cx)
+                mouth(s, cx, clock, sadAmt, speakingAmt)
+                thinkingDots(s, cx, thinkingAmt, clock)
+            }
+
+            if (celebrating) confetti(clock, s, s, s)
+            if (phase == Phase.BOOTING) bootRing(progress, clock, s, cx)
         }
 
-        if (celebrating) confetti(clock, size.width, size.height, s)
-        if (phase == Phase.BOOTING) bootRing(progress, clock, s, cx)
+        val w = size.width.toInt()
+        val h = size.height.toInt()
+        if (w > 0 && h > 0) {
+            drawImage(
+                image = sprite,
+                srcOffset = IntOffset.Zero,
+                srcSize = IntSize(grid, grid),
+                dstOffset = IntOffset.Zero,
+                dstSize = IntSize(w, h),
+                filterQuality = FilterQuality.None,
+            )
+        }
     }
 }
 
@@ -211,7 +263,7 @@ private fun DrawScope.head(s: Float, cx: Float) {
 }
 
 private fun DrawScope.hair(s: Float, cx: Float) {
-    // casquete (metade de cima da cabeça)
+    // casquete (metade de cima da cabeca)
     drawArc(
         Hair,
         startAngle = 180f,
@@ -220,7 +272,7 @@ private fun DrawScope.hair(s: Float, cx: Float) {
         topLeft = Offset(cx - HEAD_R * s - 0.004f * s, (HEAD_CY - HEAD_R) * s - 0.004f * s),
         size = Size((HEAD_R + 0.004f) * 2f * s, (HEAD_R + 0.004f) * 2f * s),
     )
-    // franja em scallop (bump central + têmporas, fora da coluna dos olhos)
+    // franja em scallop (bump central + temporas, fora da coluna dos olhos)
     drawCircle(Hair, radius = 0.052f * s, center = Offset(cx, 0.375f * s))
     drawCircle(Hair, radius = 0.045f * s, center = Offset(cx - 0.20f * s, 0.378f * s))
     drawCircle(Hair, radius = 0.045f * s, center = Offset(cx + 0.20f * s, 0.378f * s))

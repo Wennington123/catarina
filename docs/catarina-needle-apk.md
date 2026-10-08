@@ -225,10 +225,16 @@ Com **root (Magisk)**, amplia: `svc wifi/bluetooth`, `settings put`, acesso a
 
 - `AudioRecord` em **16 kHz mono** (exigência do Whistle).
 - VAD simples (energia/RMS) pra cortar silêncio antes de transcrever.
+- Microfone é recurso único: o `AudioRecord` do wake word e o do turno disputam
+  o device. A captura é cancelável (`AudioCapture.cancel()`, que para o
+  `AudioRecord`) porque `Thread.interrupt()` não destrava um `read` bloqueado —
+  sem isso o wake word segura o mic e o turno grava silêncio.
 - Whistle: até 30 s por passada; `needle.stream(chunks)` pra transcrição contínua
   (compromete as palavras que duas passadas concordam).
 - TTS: `TextToSpeech` nativo do Android (offline, sem Google, se o motor local
-  estiver instalado).
+  estiver instalado). Sem voz de criança disponível no motor nativo: o timbre
+  jovem vem de `setPitch(1.35f)`. Escolhe a voz local do idioma e aplica
+  `AudioAttributes` de assistente; a fala pedida antes do init fica em fila.
 
 ## 10. Privacidade e telemetria
 

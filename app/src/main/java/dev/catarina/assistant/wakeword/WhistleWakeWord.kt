@@ -17,12 +17,18 @@ class WhistleWakeWord(private val phrase: String = "catarina") : WakeWordDetecto
 
     private var thread: Thread? = null
 
+    private val capture = AudioCapture(silenceHoldMs = 400, maxUtteranceMs = 3_000)
+
     override fun start(onDetected: (transcript: String) -> Unit) {
         if (running) return
         running = true
         thread = Thread {
-            val capture = AudioCapture(silenceHoldMs = 400, maxUtteranceMs = 3_000)
             while (running) {
+                // resume() antes de checar `running`: se um stop() correu no meio,
+                // o flag fica "stopped" e recordUtterance devolve vazio (nao rouba
+                // o microfone do turno).
+                capture.resume()
+                if (!running) break
                 val pcm = capture.recordUtterance()
                 if (!running) break
                 if (pcm.isEmpty()) continue
@@ -43,7 +49,9 @@ class WhistleWakeWord(private val phrase: String = "catarina") : WakeWordDetecto
 
     override fun stop() {
         running = false
-        thread?.interrupt()
+        // Destrava o read bloqueado e libera o microfone para o turno. Sem isto
+        // o `AudioRecord` do wake word fica preso e o turno grava silencio.
+        capture.cancel()
         thread = null
     }
 }
