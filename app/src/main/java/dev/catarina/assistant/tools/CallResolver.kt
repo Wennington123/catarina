@@ -10,15 +10,23 @@ import dev.catarina.assistant.engine.NeedleResponse
  *
  * - removemos duplicatas exatas;
  * - detectamos conflito (mesma ferramenta, argumentos diferentes);
- * - aplicamos o piso de confianca, pedindo confirmacao quando nao da pra agir.
+ * - nunca executamos acao sensivel sem confirmacao;
+ * - aplicamos o piso de confianca.
+ *
+ * Nota: o fine-tune LOCAL nao treina o head de confianca, entao `confidence`
+ * vem `None`. Nesse caso agimos (o modelo foi treinado para essas tools), mas
+ * acoes sensiveis seguem exigindo confirmacao.
  */
 object CallResolver {
+
+    /** Acoes que nunca executam sem confirmacao, qualquer que seja a confianca. */
+    private val SENSITIVE = setOf("send_sms", "run_shell", "set_ac")
 
     sealed interface Decision {
         /** Executar as chamadas. */
         data class Act(val calls: List<FunctionCall>) : Decision
 
-        /** Baixa confianca ou conflito: mostrar e pedir confirmacao. */
+        /** Baixa confianca, conflito ou acao sensivel: mostrar e pedir confirmacao. */
         data class Confirm(val calls: List<FunctionCall>, val reason: String) : Decision
 
         /** Nada a fazer (off-topic). */
@@ -31,17 +39,20 @@ object CallResolver {
 
         if (calls.isEmpty() && held.isEmpty()) return Decision.Refuse
 
-        val conflict = hasConflict(calls) || hasConflict(held)
-        val confident = (response.confidence ?: 0.0) >= floor
+        val target = calls.ifEmpty { held }
+        val confidence = response.confidence
 
-        return if (calls.isNotEmpty() && confident && !conflict) {
-            Decision.Act(calls)
-        } else {
-            val reason = when {
-                conflict -> "chamadas conflitantes"
-                else -> "confianca ${"%.2f".format(response.confidence ?: 0.0)} < $floor"
-            }
-            Decision.Confirm(calls.ifEmpty { held }, reason)
+        return when {
+            hasConflict(target) -> Decision.Confirm(target, "chamadas conflitantes")
+
+            target.any { it.name in SENSITIVE } -> Decision.Confirm(target, "acao sensivel")
+
+            calls.isNotEmpty() && (confidence == null || confidence >= floor) -> Decision.Act(calls)
+
+            else -> Decision.Confirm(
+                target,
+                "confianca ${"%.2f".format(confidence ?: 0.0)} < $floor",
+            )
         }
     }
 

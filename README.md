@@ -105,6 +105,12 @@ clang++ -O2 -std=c++17 -Iapp/src/main/cpp/android-arm64 scripts/engine_test.cpp 
   app/src/main/assets/tools.json "turn on the flashlight"
 ```
 
+## Fine-tune (português)
+
+O modelo base é English-centric — comandos em PT acertam a tool mas com confiança
+baixa. Há uma receita pronta em `training/` (dataset em PT + `needle finetune` +
+empacotamento do `.cact`), pra rodar no notebook. Ver `training/README.md`.
+
 ## Privacidade
 
 - Inferência nunca toca a rede.

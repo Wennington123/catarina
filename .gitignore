@@ -22,5 +22,9 @@ app/src/main/assets/models/
 *.cact
 *.idx
 
+# Fine-tune (artefatos grandes)
+checkpoints/
+training/*.safetensors
+
 # OS
 .DS_Store
