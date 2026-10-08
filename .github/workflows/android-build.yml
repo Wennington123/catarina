@@ -31,11 +31,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: NDK r27 + CMake
-        run: sdkmanager --install "ndk;27.0.12077973" "cmake;3.22.1"
+      - name: Licenças + NDK r27 + CMake
+        run: |
+          SDKM="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -n1)"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" --install "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973" "cmake;3.22.1"
 
       - name: Engine nativo (Cactus)
         run: |
