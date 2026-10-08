@@ -4,6 +4,8 @@ import android.content.Context
 import dev.catarina.assistant.engine.NeedleEngine
 import dev.catarina.assistant.engine.NeedleResponse
 import dev.catarina.assistant.model.ModelRepository
+import dev.catarina.assistant.state.AssistantStateBus
+import dev.catarina.assistant.state.Phase
 import dev.catarina.assistant.tools.CallResolver
 import dev.catarina.assistant.tools.ToolExecutor
 import kotlinx.coroutines.Dispatchers
@@ -29,17 +31,28 @@ class CatarinaBrain(private val context: Context) {
         enum class Kind { ACTED, CONFIRM, REFUSED, ERROR }
     }
 
-    /** Baixa (1x) e carrega os modelos. Idempotente. */
+    /** Baixa (1x) e carrega os modelos. Idempotente. Publica BOOTING + progresso. */
     suspend fun ensureLoaded(onProgress: (downloaded: Long, total: Long, name: String) -> Unit = { _, _, _ -> }) =
         mutex.withLock {
             if (loaded) return@withLock
-            withContext(Dispatchers.IO) {
-                val needle = models.ensure(ModelRepository.NEEDLE3) { d, t -> onProgress(d, t, "needle3.cact") }
-                val whistle = models.ensure(ModelRepository.WHISTLE) { d, t -> onProgress(d, t, "whistle.cact") }
-                val tools = context.assets.open("tools.json").bufferedReader().use { it.readText() }
-                NeedleEngine.load(needle)
-                NeedleEngine.load(whistle)
-                NeedleEngine.init(systemPrompt = SYSTEM, toolsJson = tools)
+            AssistantStateBus.set(Phase.BOOTING)
+            try {
+                withContext(Dispatchers.IO) {
+                    val needle = models.ensure(ModelRepository.NEEDLE3) { d, t ->
+                        onProgress(d, t, "needle3.cact")
+                        AssistantStateBus.updateProgress(if (t > 0) d.toFloat() / t else null)
+                    }
+                    val whistle = models.ensure(ModelRepository.WHISTLE) { d, t ->
+                        onProgress(d, t, "whistle.cact")
+                        AssistantStateBus.updateProgress(if (t > 0) d.toFloat() / t else null)
+                    }
+                    val tools = context.assets.open("tools.json").bufferedReader().use { it.readText() }
+                    NeedleEngine.load(needle)
+                    NeedleEngine.load(whistle)
+                    NeedleEngine.init(systemPrompt = SYSTEM, toolsJson = tools)
+                }
+            } finally {
+                AssistantStateBus.updateProgress(null)
             }
             loaded = true
         }

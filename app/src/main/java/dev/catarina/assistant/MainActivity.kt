@@ -3,55 +3,57 @@ package dev.catarina.assistant
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.widget.Button
-import android.widget.ProgressBar
-import android.widget.TextView
+import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import dev.catarina.assistant.audio.AudioCapture
 import dev.catarina.assistant.core.CatarinaBrain
+import dev.catarina.assistant.core.Turn
 import dev.catarina.assistant.service.CatarinaService
+import dev.catarina.assistant.state.AssistantStateBus
+import dev.catarina.assistant.state.Phase
+import dev.catarina.assistant.ui.CatarinaTheme
+import dev.catarina.assistant.ui.MainScreen
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * UI minima: um turno por vez (para testar no device), baixar modelos com
- * progresso e ligar o modo continuo do service.
+ * UI em Compose: a bebezinha reage ao estado; um turno manual por vez (para
+ * testar no device), download dos pesos com anel de progresso e o modo
+ * continuo do service.
  */
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var status: TextView
-    private lateinit var progress: ProgressBar
-    private lateinit var listen: Button
-    private lateinit var serviceButton: Button
-    private lateinit var permissionButton: Button
-
     private val brain: CatarinaBrain get() = (application as CatarinaApp).brain
     private val capture = AudioCapture()
+    private var turnJob: Job? = null
 
     private val requestPermissions =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-        status = findViewById(R.id.statusText)
-        progress = findViewById(R.id.progress)
-        listen = findViewById(R.id.listenButton)
-        serviceButton = findViewById(R.id.serviceButton)
-        permissionButton = findViewById(R.id.permissionButton)
-
-        listen.setOnClickListener { onListen() }
-        serviceButton.setOnClickListener { onStartService() }
-        permissionButton.setOnClickListener { requestPermissions.launch(PERMISSIONS) }
+        setContent {
+            CatarinaTheme {
+                MainScreen(
+                    onListen = ::onListen,
+                    onToggleService = ::onToggleService,
+                    onGrantPermissions = { requestPermissions.launch(PERMISSIONS) },
+                )
+            }
+        }
     }
 
     /** O service roda como foreground do tipo microfone: precisa de RECORD_AUDIO antes. */
-    private fun onStartService() {
+    private fun onToggleService() {
+        if (AssistantStateBus.base == Phase.LISTENING) {
+            CatarinaService.stop(this)
+            return
+        }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) !=
             PackageManager.PERMISSION_GRANTED
         ) {
@@ -59,7 +61,6 @@ class MainActivity : AppCompatActivity() {
             return
         }
         CatarinaService.start(this)
-        status.text = getString(R.string.notif_listening)
     }
 
     private fun onListen() {
@@ -69,43 +70,31 @@ class MainActivity : AppCompatActivity() {
             requestPermissions.launch(PERMISSIONS)
             return
         }
+        if (turnJob?.isActive == true) return
 
-        listen.isEnabled = false
-        lifecycleScope.launch {
+        turnJob = lifecycleScope.launch {
             try {
-                status.text = getString(R.string.status_loading)
-                brain.ensureLoaded { done, total, name -> showProgress(name, done, total) }
-                hideProgress()
-
-                status.text = getString(R.string.status_listening)
+                brain.ensureLoaded()
+                AssistantStateBus.set(Phase.HEARING)
                 val pcm = withContext(Dispatchers.IO) { capture.recordUtterance() }
-                if (pcm.isEmpty()) {
-                    status.text = getString(R.string.status_no_speech)
-                    return@launch
-                }
-
+                AssistantStateBus.set(Phase.THINKING)
                 val turn = brain.handleAudio(pcm)
-                status.text = turn.status
+                AssistantStateBus.updateMessage(turn.status)
+                react(turn)
             } catch (t: Throwable) {
-                status.text = getString(R.string.status_error, t.message)
-            } finally {
-                hideProgress()
-                listen.isEnabled = true
+                AssistantStateBus.updateMessage("Erro: ${t.message}")
+                AssistantStateBus.flash(Phase.SAD)
             }
         }
     }
 
-    private fun showProgress(name: String, done: Long, total: Long) {
-        val pct = if (total > 0) (done * 100 / total).toInt() else 0
-        runOnUiThread {
-            progress.visibility = ProgressBar.VISIBLE
-            progress.progress = pct
-            status.text = getString(R.string.status_downloading, name, pct)
+    /** Reacao do mascote; fases com `flash` voltam sozinhas ao repouso. */
+    private fun react(turn: Turn) {
+        when (turn.kind) {
+            Turn.Kind.ACTED -> AssistantStateBus.flash(Phase.CELEBRATING)
+            Turn.Kind.REFUSED, Turn.Kind.ERROR -> AssistantStateBus.flash(Phase.SAD)
+            Turn.Kind.CONFIRM -> AssistantStateBus.rest()
         }
-    }
-
-    private fun hideProgress() {
-        runOnUiThread { progress.visibility = ProgressBar.GONE }
     }
 
     private companion object {

@@ -13,6 +13,7 @@ captures/
 .idea/
 *.iml
 .vscode/
+.commandcode/
 
 # Engine nativo (baixado, não versionado)
 app/src/main/cpp/android-*/

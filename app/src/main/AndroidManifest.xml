@@ -21,6 +21,8 @@
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
+    <!-- Bolha flutuante com a mascote (opt-in do usuário) -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <uses-feature android:name="android.hardware.microphone" android:required="true" />
     <uses-feature android:name="android.hardware.consumerir" android:required="false" />
@@ -28,7 +30,7 @@
     <application
         android:name=".CatarinaApp"
         android:allowBackup="false"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Catarina">
@@ -72,6 +74,23 @@
             android:permission="android.permission.BIND_SPEECH_RECOGNITION_SERVICE">
             <intent-filter>
                 <action android:name="android.speech.RecognitionService" />
+            </intent-filter>
+        </service>
+
+        <!-- Bolha flutuante com a mascote -->
+        <service
+            android:name=".ui.overlay.MascotOverlayService"
+            android:exported="false" />
+
+        <!-- Tile nas configurações rápidas (liga/desliga o modo contínuo) -->
+        <service
+            android:name=".tile.CatarinaTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_launcher"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
 

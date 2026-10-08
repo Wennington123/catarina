@@ -85,7 +85,10 @@ jarvis/
 │   │   │   ├── tools/         # Registro de ferramentas + executores
 │   │   │   ├── wakeword/      # KWS (ver §8)
 │   │   │   ├── service/       # Foreground service (modelo quente + mic)
-│   │   │   ├── ui/            # Onboarding + tela simples
+│   │   │   ├── state/         # AssistantStateBus (fases) + AppSettings (root/bolha)
+│   │   │   ├── ui/            # Compose: MainScreen + tema + bolha flutuante
+│   │   │   │   └── mascot/    # BabyMascot (Canvas, reage às fases)
+│   │   │   ├── tile/          # Quick Settings tile (modo contínuo)
 │   │   │   └── assistant/     # VoiceInteractionService (assistente padrão)
 │   │   └── cpp/               # Shim JNI + CMakeLists
 │   │       ├── needle_jni.cpp

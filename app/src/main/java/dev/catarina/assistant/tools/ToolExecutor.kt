@@ -19,6 +19,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import dev.catarina.assistant.R
 import dev.catarina.assistant.engine.FunctionCall
+import dev.catarina.assistant.state.AppSettings
 import dev.catarina.assistant.util.ShellRunner
 import org.json.JSONObject
 
@@ -56,7 +57,7 @@ class ToolExecutor(private val context: Context) {
     // ---- Rede ----
 
     private fun setWifi(on: Boolean): ToolResult {
-        if (ShellRunner.hasRoot) {
+        if (AppSettings.rootAllowed()) {
             val r = ShellRunner.run(listOf("svc", "wifi", if (on) "enable" else "disable"), asRoot = true)
             if (r.ok) return ToolResult(true, "Wi-Fi ${if (on) "ligado" else "desligado"}")
         }
@@ -68,7 +69,7 @@ class ToolExecutor(private val context: Context) {
     }
 
     private fun setBluetooth(on: Boolean): ToolResult {
-        if (ShellRunner.hasRoot) {
+        if (AppSettings.rootAllowed()) {
             val r = ShellRunner.run(listOf("svc", "bluetooth", if (on) "enable" else "disable"), asRoot = true)
             if (r.ok) return ToolResult(true, "Bluetooth ${if (on) "ligado" else "desligado"}")
         }
@@ -97,7 +98,7 @@ class ToolExecutor(private val context: Context) {
 
     private fun setBrightness(level: Int): ToolResult {
         val v = level.coerceIn(0, 100) * 255 / 100
-        if (ShellRunner.hasRoot) {
+        if (AppSettings.rootAllowed()) {
             ShellRunner.run(listOf("settings", "put", "system", "screen_brightness_mode", "0"), asRoot = true)
             val r = ShellRunner.run(
                 listOf("settings", "put", "system", "screen_brightness", v.toString()),
@@ -208,6 +209,9 @@ class ToolExecutor(private val context: Context) {
     // ---- Shell (allowlist) ----
 
     private fun runShell(cmd: String): ToolResult {
+        if (!AppSettings.rootAllowed()) {
+            return ToolResult(false, "recursos root desativados (ative em Configurações)")
+        }
         val parts = cmd.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (parts.isEmpty()) return ToolResult(false, "comando vazio")
         if (parts.first() !in SHELL_ALLOWLIST) {
