@@ -94,6 +94,9 @@ Isso baixa `android-arm64/` (`needle`, `libneedle.a`, `needle.h`) para
 Todo push em `main` dispara `.github/workflows/android-build.yml`, que monta o
 APK de debug na nuvem (JDK 17 + NDK r27 + engine Cactus). O APK sai como
 artifact `catarina-debug-apk` na página Actions da run — baixe e instale.
+As versões empacotadas ficam na seção
+[Releases](https://github.com/Wennington123/catarina/releases) (começando pela
+`v0.1.0`).
 
 ## Build (no notebook)
 
