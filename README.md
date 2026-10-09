@@ -17,36 +17,65 @@ O único acesso à rede é o download dos pesos no primeiro uso — depois disso
 | Intenção → ação | Needle 3 (8–29 MB) | sim |
 | Integração | Kotlin + JNI sobre a C API da Cactus | — |
 | Sons | Sintetizados no app (`AudioTrack`, sem fala) | sim |
-| UI + mascote | Jetpack Compose (Canvas pixel art, 100% código) | — |
+| UI + mascote | Sprite sheet (`mascote_anim/`) desenhado em Compose Canvas | — |
 | Cérebro (opcional) | Provedor OpenAI-compatible (function calling) | não — só no modo API |
 
 ## Estrutura
 
 ```
+mascote_anim/                # sprites da mascote (fonte única; o build empacota)
+├── sprite_sheet.png         # 448×64 = 7 frames de 64px, fundo transparente
+└── mascot_config.json       # grid, pivô e animações (frames + frame_rate)
+
 app/src/main/
 ├── cpp/                     # shim JNI (needle_jni.cpp) + CMake
 ├── assets/tools.json        # schemas das ferramentas
 ├── assets/ir/ac.json        # códigos IR do ar-condicionado
 └── java/dev/catarina/assistant/
-    ├── core/                # CatarinaBrain (dono único do engine)
-    ├── engine/              # wrapper do engine + parser da resposta
-    ├── audio/               # captura 16 kHz mono + VAD
+    ├── core/                # CatarinaBrain (dono único do engine) + RemoteBrain
+    ├── engine/              # wrapper do engine + parser + schema das tools
+    ├── audio/               # captura 16 kHz mono + VAD + SoundKit/MascotSounds
     ├── model/               # download dos pesos com hash
     ├── tools/               # ToolExecutor + CallResolver (dedupe/gating)
     ├── wakeword/            # detector de wake word
     ├── service/             # CatarinaService (modelo quente + loop)
     ├── state/               # AssistantStateBus (fases p/ o mascote) + AppSettings
     ├── ui/                  # Compose: MainScreen, tema e bolha flutuante
-    │   └── mascot/          # BabyMascot — a bebezinha em pixel art (Canvas, grid 64×64)
+    │   └── mascot/          # BabyMascot + MascotSprite (lê o sheet e o JSON)
     ├── tile/                # Quick Settings tile (liga/desliga o contínuo)
     └── assistant/           # VoiceInteraction + Recognition services
 ```
+
+## Sprites da mascote
+
+O desenho vem de `mascote_anim/` (raiz do repo): edite lá e o Gradle empacota
+direto, sem passo de cópia (ver `sourceSets` no `app/build.gradle.kts`). O
+`mascot_config.json` diz a grade, o pivô e cada animação (`frames` +
+`frame_rate`); o `MascotSprite` lê isso e o `BabyMascot` desenha com
+`FilterQuality.None`, mantendo o pixel art duro.
+
+Fase → animação (com fallback, se o nome não existir no JSON):
+
+| Fase | Animação | Fallback |
+|---|---|---|
+| IDLE | `idle` | — |
+| BOOTING | `booting` | `idle` + anel de progresso |
+| LISTENING / HEARING | `listening` | `idle` |
+| THINKING | `thinking` | `listening` + pontinhos |
+| SPEAKING | `talking` | `idle` |
+| CELEBRATING | `celebrating` | `listening` + confetti |
+| SAD | `sad` | `idle` |
+
+Hoje o sheet tem `idle` (2), `talking` (3), `listening` (1) e `sad` (1). Faltam
+`thinking`, `celebrating` e `booting` — quando existirem, basta acrescentar no
+JSON que o app usa na hora. O anel de escuta, os pontinhos, o confetti e o anel
+de progresso são desenhados por código por cima do sprite.
 
 ## Como funciona
 
 ```
 wake word → AudioRecord 16 kHz mono → Whistle (STT) → Needle 3 (tool call)
-          → CallResolver (dedupe + confiança) → ToolExecutor → TTS
+          → CallResolver (dedupe + confiança) → ToolExecutor → som fofo
 ```
 
 O engine é **process-global e não thread-safe**: o `NeedleEngine` serializa todas
@@ -157,10 +186,10 @@ empacotamento do `.cact`), pra rodar no notebook. Ver `training/README.md`.
 ## Status
 
 Implementado: engine/tools/service/assistente, download automático dos pesos,
-mascote em pixel art (Compose Canvas) com bolha flutuante opt-in, sons fofos
-sintetizados (sem fala), Quick Settings tile, gate de root opt-in, modo provedor
-externo (API OpenAI-compatible) opt-in e build remoto via Actions. Falta
-assinatura release.
+mascote em pixel art (sprite sheet em `mascote_anim/`) com bolha flutuante
+opt-in, sons fofos sintetizados (sem fala), Quick Settings tile, gate de root
+opt-in, modo provedor externo (API OpenAI-compatible) opt-in e build remoto via
+Actions. Falta assinatura release.
 Achados do smoke test no A32 e o que ainda depende de fine-tune estão em
 `docs/catarina-needle-apk.md` (§14).
 
@@ -169,7 +198,7 @@ Achados do smoke test no A32 e o que ainda depende de fine-tune estão em
 - [x] Estrutura, engine, JNI, tools, service, assistente
 - [x] Download automático dos pesos + progresso (anel na mascote)
 - [x] Mascote animada (Compose Canvas) + bolha flutuante opt-in
-- [x] Mascote em pixel art (grid rasterizado, sem assets)
+- [x] Mascote em pixel art (sprite sheet próprio em `mascote_anim/`)
 - [x] Quick Settings tile
 - [x] Gate de root opt-in (toggle nas Configurações)
 - [x] Cérebro externo opt-in (API OpenAI-compatible com function calling)

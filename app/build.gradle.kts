@@ -12,8 +12,8 @@ android {
         applicationId = "dev.catarina.assistant"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.5.0"
 
         ndk {
             // Só 64-bit: mantém o APK enxuto.
@@ -47,6 +47,14 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    sourceSets {
+        getByName("main") {
+            // `mascote_anim/` (raiz do repo) e a fonte unica dos sprites: edite la
+            // e o build empacota direto, sem passo de copia.
+            assets.srcDir("../mascote_anim")
+        }
     }
 
     composeOptions {

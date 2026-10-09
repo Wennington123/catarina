@@ -87,7 +87,7 @@ jarvis/
 │   │   │   ├── service/       # Foreground service (modelo quente + mic)
 │   │   │   ├── state/         # AssistantStateBus (fases) + AppSettings (root/bolha)
 │   │   │   ├── ui/            # Compose: MainScreen + tema + bolha flutuante
-│   │   │   │   └── mascot/    # BabyMascot (Canvas, reage às fases)
+│   │   │   │   └── mascot/    # BabyMascot + MascotSprite (lê mascote_anim/)
 │   │   │   ├── tile/          # Quick Settings tile (modo contínuo)
 │   │   │   └── assistant/     # VoiceInteractionService (assistente padrão)
 │   │   └── cpp/               # Shim JNI + CMakeLists
