@@ -4,7 +4,7 @@
     "x": 32,
     "y": 32
   },
-  "total_frames": 7,
+  "total_frames": 13,
   "animations": {
     "idle": {
       "frames": [
@@ -30,6 +30,32 @@
     "sad": {
       "frames": [
         6
+      ],
+      "frame_rate": 1
+    },
+    "thinking": {
+      "frames": [
+        7,
+        8
+      ],
+      "frame_rate": 2
+    },
+    "celebrating": {
+      "frames": [
+        9,
+        10
+      ],
+      "frame_rate": 4
+    },
+    "booting": {
+      "frames": [
+        11
+      ],
+      "frame_rate": 1
+    },
+    "hearing": {
+      "frames": [
+        12
       ],
       "frame_rate": 1
     }
@@ -82,6 +108,48 @@
       "eyes": "open",
       "mouth": "sad",
       "arms": "down",
+      "anim": 0
+    },
+    {
+      "name": "thinking_1",
+      "eyes": "up",
+      "mouth": "hmm",
+      "arms": "down",
+      "anim": 0
+    },
+    {
+      "name": "thinking_2",
+      "eyes": "up",
+      "mouth": "hmm",
+      "arms": "think",
+      "anim": 0
+    },
+    {
+      "name": "celebrating_1",
+      "eyes": "happy",
+      "mouth": "big_smile",
+      "arms": "up",
+      "anim": 0
+    },
+    {
+      "name": "celebrating_2",
+      "eyes": "happy",
+      "mouth": "big_smile",
+      "arms": "up",
+      "anim": 2
+    },
+    {
+      "name": "booting_1",
+      "eyes": "sleep",
+      "mouth": "smile",
+      "arms": "down",
+      "anim": 0
+    },
+    {
+      "name": "hearing_1",
+      "eyes": "wide",
+      "mouth": "open3",
+      "arms": "up",
       "anim": 0
     }
   ]

@@ -54,22 +54,23 @@ direto, sem passo de cópia (ver `sourceSets` no `app/build.gradle.kts`). O
 `frame_rate`); o `MascotSprite` lê isso e o `BabyMascot` desenha com
 `FilterQuality.None`, mantendo o pixel art duro.
 
-Fase → animação (com fallback, se o nome não existir no JSON):
+Fase → animação (com fallback, caso o nome não exista no JSON):
 
 | Fase | Animação | Fallback |
 |---|---|---|
 | IDLE | `idle` | — |
-| BOOTING | `booting` | `idle` + anel de progresso |
-| LISTENING / HEARING | `listening` | `idle` |
-| THINKING | `thinking` | `listening` + pontinhos |
+| BOOTING | `booting` | `idle` |
+| LISTENING | `listening` | `idle` |
+| HEARING | `hearing` | `listening`, `idle` |
+| THINKING | `thinking` | `listening`, `idle` |
 | SPEAKING | `talking` | `idle` |
-| CELEBRATING | `celebrating` | `listening` + confetti |
+| CELEBRATING | `celebrating` | `listening`, `idle` |
 | SAD | `sad` | `idle` |
 
-Hoje o sheet tem `idle` (2), `talking` (3), `listening` (1) e `sad` (1). Faltam
-`thinking`, `celebrating` e `booting` — quando existirem, basta acrescentar no
-JSON que o app usa na hora. O anel de escuta, os pontinhos, o confetti e o anel
-de progresso são desenhados por código por cima do sprite.
+O sheet tem 13 frames (`idle` 2, `talking` 3, `listening` 1, `sad` 1,
+`thinking` 2, `celebrating` 2, `booting` 1, `hearing` 1). O anel de escuta, os
+pontinhos de "pensando", o confetti e o anel de progresso são desenhados por
+código por cima do sprite.
 
 ## Como funciona
 
