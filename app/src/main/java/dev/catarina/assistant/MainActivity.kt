@@ -9,8 +9,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import dev.catarina.assistant.audio.AudioCapture
+import dev.catarina.assistant.audio.MascotSound
+import dev.catarina.assistant.audio.MascotSounds
+import dev.catarina.assistant.audio.reactToTurn
 import dev.catarina.assistant.core.CatarinaBrain
-import dev.catarina.assistant.core.CatarinaBrain.Turn
 import dev.catarina.assistant.service.CatarinaService
 import dev.catarina.assistant.state.AssistantStateBus
 import dev.catarina.assistant.state.Phase
@@ -76,24 +78,17 @@ class MainActivity : AppCompatActivity() {
             try {
                 brain.ensureLoaded()
                 AssistantStateBus.set(Phase.HEARING)
+                MascotSounds.play(MascotSound.HEAR)
                 val pcm = withContext(Dispatchers.IO) { capture.recordUtterance() }
                 AssistantStateBus.set(Phase.THINKING)
                 val turn = brain.handleAudio(pcm)
                 AssistantStateBus.updateMessage(turn.status)
-                react(turn)
+                reactToTurn(turn)
             } catch (t: Throwable) {
                 AssistantStateBus.updateMessage("Erro: ${t.message}")
                 AssistantStateBus.flash(Phase.SAD)
+                MascotSounds.play(MascotSound.SAD)
             }
-        }
-    }
-
-    /** Reacao do mascote; fases com `flash` voltam sozinhas ao repouso. */
-    private fun react(turn: Turn) {
-        when (turn.kind) {
-            Turn.Kind.ACTED -> AssistantStateBus.flash(Phase.CELEBRATING)
-            Turn.Kind.REFUSED, Turn.Kind.ERROR -> AssistantStateBus.flash(Phase.SAD)
-            Turn.Kind.CONFIRM, Turn.Kind.ANSWER -> AssistantStateBus.rest()
         }
     }
 

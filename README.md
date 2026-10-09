@@ -16,7 +16,7 @@ O único acesso à rede é o download dos pesos no primeiro uso — depois disso
 | STT | Whistle (16.9 MB) | sim |
 | Intenção → ação | Needle 3 (8–29 MB) | sim |
 | Integração | Kotlin + JNI sobre a C API da Cactus | — |
-| TTS | `TextToSpeech` nativo + pitch infantil | sim |
+| Sons | Sintetizados no app (`AudioTrack`, sem fala) | sim |
 | UI + mascote | Jetpack Compose (Canvas pixel art, 100% código) | — |
 | Cérebro (opcional) | Provedor OpenAI-compatible (function calling) | não — só no modo API |
 
@@ -157,9 +157,10 @@ empacotamento do `.cact`), pra rodar no notebook. Ver `training/README.md`.
 ## Status
 
 Implementado: engine/tools/service/assistente, download automático dos pesos,
-mascote em pixel art (Compose Canvas) com bolha flutuante opt-in, Quick Settings
-tile, gate de root opt-in, modo provedor externo (API OpenAI-compatible) opt-in
-e build remoto via Actions. Falta assinatura release.
+mascote em pixel art (Compose Canvas) com bolha flutuante opt-in, sons fofos
+sintetizados (sem fala), Quick Settings tile, gate de root opt-in, modo provedor
+externo (API OpenAI-compatible) opt-in e build remoto via Actions. Falta
+assinatura release.
 Achados do smoke test no A32 e o que ainda depende de fine-tune estão em
 `docs/catarina-needle-apk.md` (§14).
 
@@ -172,6 +173,7 @@ Achados do smoke test no A32 e o que ainda depende de fine-tune estão em
 - [x] Quick Settings tile
 - [x] Gate de root opt-in (toggle nas Configurações)
 - [x] Cérebro externo opt-in (API OpenAI-compatible com function calling)
+- [x] Sons fofos sintetizados no app (sem fala / TTS)
 - [ ] Fine-tune em português (comandos reais)
 - [ ] Confirmação de ação sensível por voz (hoje só pede e não retoma)
 - [ ] KWS dedicado no lugar da wake word por transcrição

@@ -1,0 +1,88 @@
+{
+  "grid_size": 64,
+  "pivot": {
+    "x": 32,
+    "y": 32
+  },
+  "total_frames": 7,
+  "animations": {
+    "idle": {
+      "frames": [
+        0,
+        1
+      ],
+      "frame_rate": 2
+    },
+    "talking": {
+      "frames": [
+        2,
+        3,
+        4
+      ],
+      "frame_rate": 6
+    },
+    "listening": {
+      "frames": [
+        5
+      ],
+      "frame_rate": 1
+    },
+    "sad": {
+      "frames": [
+        6
+      ],
+      "frame_rate": 1
+    }
+  },
+  "mapping": [
+    {
+      "name": "idle_1",
+      "eyes": "open",
+      "mouth": "smile",
+      "arms": "down",
+      "anim": 0
+    },
+    {
+      "name": "idle_2",
+      "eyes": "blink",
+      "mouth": "smile",
+      "arms": "down",
+      "anim": 1
+    },
+    {
+      "name": "talking_1",
+      "eyes": "open",
+      "mouth": "open1",
+      "arms": "down",
+      "anim": 0
+    },
+    {
+      "name": "talking_2",
+      "eyes": "open",
+      "mouth": "open2",
+      "arms": "down",
+      "anim": 1
+    },
+    {
+      "name": "talking_3",
+      "eyes": "open",
+      "mouth": "open3",
+      "arms": "down",
+      "anim": 0
+    },
+    {
+      "name": "listening",
+      "eyes": "open",
+      "mouth": "smile",
+      "arms": "up",
+      "anim": 0
+    },
+    {
+      "name": "sad",
+      "eyes": "open",
+      "mouth": "sad",
+      "arms": "down",
+      "anim": 0
+    }
+  ]
+}

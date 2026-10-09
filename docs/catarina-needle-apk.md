@@ -20,7 +20,7 @@ Documentação base para portar a assistente **Catarina** de Termux/Whisper para
 
 Um app Android **enxuto**, integrado ao sistema, que escuta a wake word,
 transcreve localmente e **chama ferramentas do device** (WiFi, IR, mídia, apps,
-notificações, shell) por voz — sem nuvem de STT/TTS e sem telemetria.
+notificações, shell) por voz — sem nuvem de STT e sem telemetria.
 
 Diferença central em relação ao `jarvis-doc.md`: o cérebro de *intenção →
 ação* deixa de ser um LLM remoto (`cmd -p`) e passa a ser o **Needle 3** local,
@@ -62,7 +62,7 @@ economia de bateria/RAM — o Needle é bem mais leve que Whisper.
 │                     │  Termux / IR)        │   │
 │                     └──────────┬───────────┘   │
 │                                ▼               │
-│                     TTS nativo (TextToSpeech)  │
+│                     Sons fofos (AudioTrack)     │
 └───────────────────────────────────────────────┘
 ```
 
@@ -231,10 +231,11 @@ Com **root (Magisk)**, amplia: `svc wifi/bluetooth`, `settings put`, acesso a
   sem isso o wake word segura o mic e o turno grava silêncio.
 - Whistle: até 30 s por passada; `needle.stream(chunks)` pra transcrição contínua
   (compromete as palavras que duas passadas concordam).
-- TTS: `TextToSpeech` nativo do Android (offline, sem Google, se o motor local
-  estiver instalado). Sem voz de criança disponível no motor nativo: o timbre
-  jovem vem de `setPitch(1.35f)`. Escolhe a voz local do idioma e aplica
-  `AudioAttributes` de assistente; a fala pedida antes do init fica em fila.
+- Som: a Catarina **não fala**. Ela emite sons curtos sintetizados no app
+  (`SoundKit`: senoide com envelope e vibrato; `AudioTrack` estático), um por
+  evento — armar escuta, te ouvir, sucesso, recusa, confirmação e "tagarelar".
+  A boca da mascote anima porque a fase vira `SPEAKING` pela duração do som.
+  Toca em `USAGE_MEDIA`/`SONIFICATION` (volume de mídia, previsível).
 
 ## 10. Privacidade e telemetria
 
@@ -341,7 +342,7 @@ nuvem (API)**: qualquer endpoint **OpenAI-compatible** com function calling.
   ferramentas seguem no aparelho.
 - `RemoteBrain` faz o loop de function calling: executa a chamada, devolve o
   resultado como `role: tool` e aí recebe a resposta em linguagem natural
-  (`Turn.Kind.ANSWER`), que é o que a Catarina fala.
+  (`Turn.Kind.ANSWER`), que aparece na tela e vira o som de "tagarelar".
 - Histórico multi-turn em memória (24 mensagens, com system prompt fixo).
 - Ações sensíveis seguem o mesmo gating (`send_sms`, `run_shell`, `set_ac`).
 - API key em prefs privadas do app (`MODE_PRIVATE`); `http` liberado só para

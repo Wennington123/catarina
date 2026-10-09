@@ -1,0 +1,153 @@
+package dev.catarina.assistant.audio
+
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioTrack
+import kotlin.math.PI
+import kotlin.math.exp
+import kotlin.math.sin
+
+/** Sons fofos da Catarina. Nao ha fala: sao bipes/arpejos curtos sintetizados. */
+enum class MascotSound { LISTEN, HEAR, HAPPY, SAD, QUESTION, TALK }
+
+/**
+ * Sintetiza os sons em PCM 16-bit mono. Tudo gerado no app (nenhum asset), na
+ * mesma linha "100% codigo" da mascote: senoide com envelope suave (ataque +
+ * decaimento) e um toque de vibrato pra soar fofo em vez de "beep" de painel.
+ */
+object SoundKit {
+
+    const val SAMPLE_RATE = 22_050
+
+    private val cache = HashMap<MascotSound, ShortArray>()
+
+    fun pcm(sound: MascotSound): ShortArray = cache.getOrPut(sound) { build(sound) }
+
+    fun durationMs(sound: MascotSound): Long = pcm(sound).size * 1000L / SAMPLE_RATE
+
+    private fun build(sound: MascotSound): ShortArray = when (sound) {
+        MascotSound.LISTEN -> concat(tone(880f, 1320f, 70), gap(25), tone(1320f, 1760f, 95))
+        MascotSound.HEAR -> tone(1180f, 1180f, 85)
+        MascotSound.HAPPY -> concat(
+            tone(660f, 660f, 70),
+            gap(20),
+            tone(880f, 880f, 70),
+            gap(20),
+            tone(1100f, 1100f, 70),
+            gap(20),
+            tone(1320f, 1320f, 120),
+        )
+        MascotSound.SAD -> concat(tone(700f, 600f, 140), gap(30), tone(560f, 430f, 200))
+        MascotSound.QUESTION -> concat(tone(990f, 990f, 80), gap(20), tone(1320f, 1580f, 130))
+        MascotSound.TALK -> talk()
+    }
+
+    /** "Tagarela": alguns blips de alturas diferentes, no lugar da fala. */
+    private fun talk(): ShortArray {
+        val pitches = floatArrayOf(1046f, 880f, 1174f, 784f, 988f)
+        val parts = ArrayList<ShortArray>(pitches.size * 2)
+        pitches.forEachIndexed { i, f ->
+            if (i > 0) parts.add(gap(35))
+            parts.add(tone(f, f * 1.06f, 55))
+        }
+        return concat(*parts.toTypedArray())
+    }
+
+    private fun tone(f0: Float, f1: Float, ms: Int, amp: Float = 0.5f): ShortArray {
+        val n = (SAMPLE_RATE * ms / 1000).coerceAtLeast(1)
+        val out = ShortArray(n)
+        var phase = 0.0
+        for (i in 0 until n) {
+            val t = i.toDouble() / n
+            val vibrato = 1.0 + 0.010 * sin(2.0 * PI * 6.0 * t)
+            val freq = (f0 + (f1 - f0) * t) * vibrato
+            phase += 2.0 * PI * freq / SAMPLE_RATE
+            val env = if (t < 0.08) t / 0.08 else exp(-3.2 * (t - 0.08) / 0.92)
+            out[i] = (sin(phase) * env * amp * Short.MAX_VALUE)
+                .toInt()
+                .coerceIn(-32768, 32767)
+                .toShort()
+        }
+        return out
+    }
+
+    private fun gap(ms: Int) = ShortArray(SAMPLE_RATE * ms / 1000)
+
+    private fun concat(vararg parts: ShortArray): ShortArray {
+        val out = ShortArray(parts.sumOf { it.size })
+        var offset = 0
+        for (p in parts) {
+            p.copyInto(out, offset)
+            offset += p.size
+        }
+        return out
+    }
+}
+
+/**
+ * Toca os sons num `AudioTrack` em modo estatico (um som curto por vez). Cada
+ * track se libera sozinho no fim da reproducao. Usa `USAGE_MEDIA` +
+ * `CONTENT_TYPE_SONIFICATION` pra tocar no volume de midia (previsivel em
+ * qualquer aparelho), e nao no stream de assistente, que pode estar mudo.
+ *
+ * O `AudioTrack` emite o som inteiro; a boca da mascote anima porque quem
+ * chamou coloca a fase em `SPEAKING` pela duracao do som.
+ */
+object MascotSounds {
+
+    private var current: AudioTrack? = null
+
+    fun play(sound: MascotSound) {
+        val pcm = SoundKit.pcm(sound)
+        stop()
+        val track = runCatching {
+            AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build(),
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(SoundKit.SAMPLE_RATE)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build(),
+                )
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .setBufferSizeInBytes(pcm.size * 2)
+                .build()
+        }.getOrNull() ?: return
+
+        if (track.state != AudioTrack.STATE_INITIALIZED) {
+            runCatching { track.release() }
+            return
+        }
+
+        runCatching {
+            track.write(pcm, 0, pcm.size)
+            track.setNotificationMarkerPosition(pcm.size)
+            track.setPlaybackPositionUpdateListener(
+                object : AudioTrack.OnPlaybackPositionUpdateListener {
+                    override fun onMarkerReached(t: AudioTrack?) {
+                        runCatching { t?.release() }
+                        if (current === t) current = null
+                    }
+
+                    override fun onPeriodicNotification(t: AudioTrack?) = Unit
+                },
+            )
+            current = track
+            track.play()
+        }.onFailure { runCatching { track.release() } }
+    }
+
+    /** Interrompe o som atual (ex.: outro comeca, ou o service morre). */
+    fun stop() {
+        val track = current ?: return
+        current = null
+        runCatching { track.stop() }
+        runCatching { track.release() }
+    }
+}

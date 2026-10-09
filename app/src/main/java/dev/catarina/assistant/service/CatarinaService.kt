@@ -7,16 +7,15 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.media.AudioAttributes
 import android.os.IBinder
-import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import dev.catarina.assistant.CatarinaApp
 import dev.catarina.assistant.MainActivity
 import dev.catarina.assistant.R
 import dev.catarina.assistant.audio.AudioCapture
+import dev.catarina.assistant.audio.MascotSound
+import dev.catarina.assistant.audio.MascotSounds
+import dev.catarina.assistant.audio.reactToTurn
 import dev.catarina.assistant.core.CatarinaBrain
 import dev.catarina.assistant.core.CatarinaBrain.Turn
 import dev.catarina.assistant.state.AssistantStateBus
@@ -29,7 +28,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
 
 /**
  * Dono do modelo quente e do loop de voz. O engine e process-global e nao
@@ -48,92 +46,14 @@ class CatarinaService : Service() {
     private val brain: CatarinaBrain get() = (application as CatarinaApp).brain
     private val capture = AudioCapture()
 
-    private var tts: TextToSpeech? = null
     private var wakeWord: WhistleWakeWord? = null
 
     @Volatile private var listening = false
     @Volatile private var busy = false
 
-    /** O TTS inicializa de forma assincrona; fala pedida antes disso fica em espera. */
-    @Volatile private var ttsReady = false
-    private var pendingSpeech: String? = null
-
     override fun onCreate() {
         super.onCreate()
         ensureChannel()
-        tts = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                configureTts()
-            } else {
-                // Init com erro: ainda tentamos falar (alguns motores retornam
-                // ERROR mesmo funcionando). Sem configurar, o timbre nao muda.
-                Log.w(TAG, "TTS init retornou $status")
-                ttsReady = true
-                pendingSpeech?.let(::speakNow)
-                pendingSpeech = null
-            }
-        }
-    }
-
-    /**
-     * Escolhe idioma/voz e aplica o timbre. Os motivos do "nao fala" eram: idioma
-     * nao conferido (pt-BR pode nao existir no aparelho), sem `AudioAttributes`
-     * (ia pra um stream mudo) e `speak` disparado antes do init terminar.
-     */
-    private fun configureTts() {
-        val engine = tts ?: return
-        engine.setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ASSISTANT)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                .build(),
-        )
-
-        val ptBr = Locale("pt", "BR")
-        val chosen = if (engine.isLanguageAvailable(ptBr) >= TextToSpeech.LANG_AVAILABLE) {
-            ptBr
-        } else {
-            Locale.getDefault()
-        }
-        if (engine.setLanguage(chosen) < TextToSpeech.LANG_AVAILABLE) {
-            engine.setLanguage(Locale.getDefault())
-        }
-
-        // Voz local do idioma escolhido, se houver (offline, sem rede).
-        val voice = engine.voices
-            ?.filter { it.locale.language == chosen.language }
-            ?.sortedBy { if (it.isNetworkConnectionRequired) 1 else 0 }
-            ?.firstOrNull()
-        if (voice != null) engine.voice = voice
-
-        // Timbre infantil: pitch acima do normal deixa a voz jovem/aguda. O TTS
-        // nativo nao tem voz de crianca, entao este e o caminho possivel.
-        engine.setPitch(CHILD_PITCH)
-        engine.setSpeechRate(CHILD_RATE)
-
-        engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(utteranceId: String?) {
-                AssistantStateBus.set(Phase.SPEAKING)
-            }
-
-            override fun onDone(utteranceId: String?) {
-                AssistantStateBus.rest()
-            }
-
-            @Deprecated("Deprecated in Java")
-            override fun onError(utteranceId: String?) {
-                AssistantStateBus.rest()
-            }
-
-            override fun onError(utteranceId: String?, errorCode: Int) {
-                Log.w(TAG, "TTS falhou (codigo $errorCode)")
-                AssistantStateBus.rest()
-            }
-        })
-
-        ttsReady = true
-        pendingSpeech?.let(::speakNow)
-        pendingSpeech = null
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -146,7 +66,10 @@ class CatarinaService : Service() {
             }
             ACTION_LISTEN -> runTurn()
             ACTION_TEXT -> intent.getStringExtra(EXTRA_TEXT)?.let(::runText)
-            else -> startListening()
+            else -> {
+                MascotSounds.play(MascotSound.LISTEN)
+                startListening()
+            }
         }
         return START_STICKY
     }
@@ -155,8 +78,7 @@ class CatarinaService : Service() {
 
     override fun onDestroy() {
         stopListening()
-        tts?.stop()
-        tts?.shutdown()
+        MascotSounds.stop()
         scope.cancel()
         super.onDestroy()
     }
@@ -172,7 +94,7 @@ class CatarinaService : Service() {
             } catch (t: Throwable) {
                 AssistantStateBus.base = Phase.IDLE
                 AssistantStateBus.updateMessage("Falha ao carregar os modelos: ${t.message}")
-                say("Falha ao carregar os modelos: ${t.message}")
+                MascotSounds.play(MascotSound.SAD)
                 listening = false
                 return@launch
             }
@@ -210,16 +132,16 @@ class CatarinaService : Service() {
             try {
                 brain.ensureLoaded()
                 AssistantStateBus.set(Phase.HEARING)
+                MascotSounds.play(MascotSound.HEAR)
                 val pcm = withContext(Dispatchers.IO) { capture.recordUtterance() }
                 AssistantStateBus.set(Phase.THINKING)
                 val turn = brain.handleAudio(pcm)
                 announce(turn)
-                say(turn.speak)
                 updateNotification(turn.status)
             } catch (t: Throwable) {
-                AssistantStateBus.flash(Phase.SAD)
                 AssistantStateBus.updateMessage("Erro: ${t.message}")
-                say("Erro: ${t.message}")
+                AssistantStateBus.flash(Phase.SAD)
+                MascotSounds.play(MascotSound.SAD)
             } finally {
                 busy = false
                 if (listening) startListening()
@@ -234,27 +156,22 @@ class CatarinaService : Service() {
                 AssistantStateBus.set(Phase.THINKING)
                 val turn = brain.handleText(text)
                 announce(turn)
-                say(turn.speak)
                 updateNotification(turn.status)
             } catch (t: Throwable) {
-                AssistantStateBus.flash(Phase.SAD)
                 AssistantStateBus.updateMessage("Erro: ${t.message}")
-                say("Erro: ${t.message}")
+                AssistantStateBus.flash(Phase.SAD)
+                MascotSounds.play(MascotSound.SAD)
             }
         }
     }
 
-    /** Publica o resultado do turno no bus (texto + reacao do mascote). */
+    /** Publica o resultado do turno: texto no bus + som fofo (a Catarina nao fala). */
     private fun announce(turn: Turn) {
         AssistantStateBus.updateMessage(turn.status)
-        when (turn.kind) {
-            Turn.Kind.ACTED -> AssistantStateBus.flash(Phase.CELEBRATING)
-            Turn.Kind.REFUSED, Turn.Kind.ERROR -> AssistantStateBus.flash(Phase.SAD)
-            Turn.Kind.CONFIRM, Turn.Kind.ANSWER -> Unit
-        }
+        reactToTurn(turn)
     }
 
-    // ---- Notificacao e voz ----
+    // ---- Notificacao e sons ----
 
     private fun ensureChannel() {
         val mgr = getSystemService(NotificationManager::class.java)
@@ -290,28 +207,9 @@ class CatarinaService : Service() {
         getSystemService(NotificationManager::class.java).notify(NOTIF_ID, buildNotification(text))
     }
 
-    private fun say(text: String) {
-        if (text.isBlank()) return
-        if (!ttsReady) {
-            pendingSpeech = text
-            return
-        }
-        speakNow(text)
-    }
-
-    private fun speakNow(text: String) {
-        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, UTTERANCE_ID)
-    }
-
     companion object {
-        private const val TAG = "CatarinaService"
         private const val CHANNEL = "catarina"
         private const val NOTIF_ID = 1
-        private const val UTTERANCE_ID = "catarina"
-
-        /** Pitch > 1 deixa o timbre jovem/agudo (o TTS nativo nao tem voz de crianca). */
-        private const val CHILD_PITCH = 1.35f
-        private const val CHILD_RATE = 1.02f
 
         const val ACTION_START = "dev.catarina.assistant.START"
         const val ACTION_STOP = "dev.catarina.assistant.STOP"

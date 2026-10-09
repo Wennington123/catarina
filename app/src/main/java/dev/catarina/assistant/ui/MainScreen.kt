@@ -291,7 +291,7 @@ private fun phaseLabel(p: Phase): String = when (p) {
     Phase.LISTENING -> "Ouvindo por \"Catarina\"…"
     Phase.HEARING -> "Te ouvindo…"
     Phase.THINKING -> "Pensando…"
-    Phase.SPEAKING -> "Falando…"
+    Phase.SPEAKING -> "Fazendo sons…"
     Phase.CELEBRATING -> "Feito!"
     Phase.SAD -> "Ops…"
 }
