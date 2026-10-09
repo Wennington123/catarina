@@ -93,7 +93,7 @@ class MainActivity : AppCompatActivity() {
         when (turn.kind) {
             Turn.Kind.ACTED -> AssistantStateBus.flash(Phase.CELEBRATING)
             Turn.Kind.REFUSED, Turn.Kind.ERROR -> AssistantStateBus.flash(Phase.SAD)
-            Turn.Kind.CONFIRM -> AssistantStateBus.rest()
+            Turn.Kind.CONFIRM, Turn.Kind.ANSWER -> AssistantStateBus.rest()
         }
     }
 
