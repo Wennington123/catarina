@@ -98,6 +98,30 @@ Campos: URL base (incluindo `/v1`), modelo e API key (guardada em prefs privadas
 do app; use **https** para provedores na internet — `http` só para rede local).
 É opt-in explícito e quebra o "zero nuvem" do modo local.
 
+### Planejado: cérebro via Termux (ponte ACP)
+
+Para quem só usa o Command Code e não tem API key nenhuma. O CLI tem modo ACP
+(`cmd acp` — *"Run as an ACP agent over stdio (for Zed, etc.)"*), mas **ACP é
+stdio/JSON-RPC, não HTTP**: o cliente abre o processo e conversa pelo
+stdin/stdout. Ou seja, não dá para colar no campo "URL base" — precisa de uma
+ponte:
+
+```
+app  ──HTTP (OpenAI-compatible)──►  ponte  ──ACP / stdio──►  cmd acp
+```
+
+- A ponte rodaria no **Termux do próprio aparelho**: o app só fala HTTP e não
+  consegue executar binário do Termux (UID diferente, precisaria de root).
+- Com o agente ACP rodando no celular, ele enxerga o shell Android
+  (`settings`, `cmd`, `svc`); o app continua sendo a frente de voz.
+- Ressalvas: ACP é protocolo de **agente de código** (lê/escreve arquivo, roda
+  comando), não uma API de chat — mapear as nossas tools vira trabalho da ponte,
+  e o Termux precisa ficar vivo em background.
+
+Objetivo: deixar os **dois modos lado a lado** nas Configurações (API e Termux),
+para atender quem tem key e quem só tem o Command Code. Hoje só o modo API
+existe.
+
 ## Ferramentas
 
 | Ferramenta | Ação | Acesso |
@@ -204,6 +228,10 @@ Achados do smoke test no A32 e o que ainda depende de fine-tune estão em
 - [x] Gate de root opt-in (toggle nas Configurações)
 - [x] Cérebro externo opt-in (API OpenAI-compatible com function calling)
 - [x] Sons fofos sintetizados no app (sem fala / TTS)
+- [ ] Cérebro via **Termux (ponte ACP)** sobre o `cmd acp` — para quem só tem o
+      Command Code e nenhuma API key (ver *Cérebro local ou na nuvem*)
+- [ ] Configurações: escolher entre **API** e **Termux** (os dois modos lado a
+      lado, cada um com suas opções)
 - [ ] Fine-tune em português (comandos reais)
 - [ ] Confirmação de ação sensível por voz (hoje só pede e não retoma)
 - [ ] KWS dedicado no lugar da wake word por transcrição
