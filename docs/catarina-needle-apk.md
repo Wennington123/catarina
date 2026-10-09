@@ -330,5 +330,24 @@ needle_complete -> 40
 Ou seja: o caminho que o APK usa (dois modelos no mesmo engine, saída em buffer)
 foi verificado no hardware alvo.
 
+## 15. Cérebro externo (opt-in)
+
+O modo local (Needle 3) é o padrão. Nas Configurações dá para ligar **Cérebro na
+nuvem (API)**: qualquer endpoint **OpenAI-compatible** com function calling.
+
+- STT continua local (Whistle) — só o texto vai pro provedor.
+- `ToolSchema.toOpenAi(tools.json)` converte o mesmo `tools.json` pra lista de
+  `tools` do provedor; o mesmo `CallResolver`/`ToolExecutor` executa. As
+  ferramentas seguem no aparelho.
+- `RemoteBrain` faz o loop de function calling: executa a chamada, devolve o
+  resultado como `role: tool` e aí recebe a resposta em linguagem natural
+  (`Turn.Kind.ANSWER`), que é o que a Catarina fala.
+- Histórico multi-turn em memória (24 mensagens, com system prompt fixo).
+- Ações sensíveis seguem o mesmo gating (`send_sms`, `run_shell`, `set_ac`).
+- API key em prefs privadas do app (`MODE_PRIVATE`); `http` liberado só para
+  rede local (provedor caseiro), **https** para internet.
+
+Quebra o "zero nuvem" — por isso é opt-in explícito.
+
 ---
 *Catarina — assistente de voz nativo com Needle 3 + Whistle. Offline-first.*

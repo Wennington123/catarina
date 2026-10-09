@@ -33,21 +33,32 @@ object CallResolver {
         data object Refuse : Decision
     }
 
-    fun resolve(response: NeedleResponse, floor: Double = 0.7): Decision {
-        val calls = dedupe(response.functionCalls)
-        val held = dedupe(response.suppressedCalls)
+    fun resolve(response: NeedleResponse, floor: Double = 0.7): Decision =
+        resolveCalls(response.functionCalls, response.suppressedCalls, response.confidence, floor)
 
-        if (calls.isEmpty() && held.isEmpty()) return Decision.Refuse
+    /**
+     * Mesma decisao, a partir das chamadas cruas. Usado tambem pelo cerebro
+     * remoto (OpenAI-compatible), que nao produz um `NeedleResponse`.
+     */
+    fun resolveCalls(
+        calls: List<FunctionCall>,
+        held: List<FunctionCall> = emptyList(),
+        confidence: Double? = null,
+        floor: Double = 0.7,
+    ): Decision {
+        val deduped = dedupe(calls)
+        val dedupedHeld = dedupe(held)
 
-        val target = calls.ifEmpty { held }
-        val confidence = response.confidence
+        if (deduped.isEmpty() && dedupedHeld.isEmpty()) return Decision.Refuse
+
+        val target = deduped.ifEmpty { dedupedHeld }
 
         return when {
             hasConflict(target) -> Decision.Confirm(target, "chamadas conflitantes")
 
             target.any { it.name in SENSITIVE } -> Decision.Confirm(target, "acao sensivel")
 
-            calls.isNotEmpty() && (confidence == null || confidence >= floor) -> Decision.Act(calls)
+            deduped.isNotEmpty() && (confidence == null || confidence >= floor) -> Decision.Act(deduped)
 
             else -> Decision.Confirm(
                 target,

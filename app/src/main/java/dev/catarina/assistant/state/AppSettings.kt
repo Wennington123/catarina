@@ -35,4 +35,48 @@ object AppSettings {
      * `ShellRunner.hasRoot` so dispara se o toggle estiver ligado.
      */
     fun rootAllowed(): Boolean = rootEnabled && ShellRunner.hasRoot
+
+    // ---- Cerebro: local (Needle) ou provedor remoto (API) ----
+
+    /**
+     * Modo `remote` manda o texto (ja transcrito localmente) pra um endpoint
+     * OpenAI-compatible com function calling. As ferramentas continuam no
+     * aparelho; so a inteligencia vem da nuvem. Opt-in explicito: quebra o
+     * "zero nuvem" do modo local.
+     */
+    var provider: String
+        get() = prefs.getString(KEY_PROVIDER, PROVIDER_LOCAL) ?: PROVIDER_LOCAL
+        set(value) = prefs.edit().putString(KEY_PROVIDER, value).apply()
+
+    /** Base do endpoint, ja incluindo o prefixo de versao (ex.: `.../v1`). */
+    var providerBaseUrl: String
+        get() = prefs.getString(KEY_BASE_URL, DEFAULT_BASE_URL) ?: DEFAULT_BASE_URL
+        set(value) = prefs.edit().putString(KEY_BASE_URL, value).apply()
+
+    var providerModel: String
+        get() = prefs.getString(KEY_MODEL, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_MODEL, value).apply()
+
+    /**
+     * Guardada em prefs privadas do app (`MODE_PRIVATE`), nao em codigo. Sem
+     * `EncryptedSharedPreferences` pra nao puxar dependencia; em aparelho sem
+     * root outro app nao le. Nao versione este valor.
+     */
+    var providerApiKey: String
+        get() = prefs.getString(KEY_API_KEY, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_API_KEY, value).apply()
+
+    val providerRemote: Boolean get() = provider == PROVIDER_REMOTE
+
+    val providerConfigured: Boolean
+        get() = providerBaseUrl.isNotBlank() && providerModel.isNotBlank()
+
+    const val PROVIDER_LOCAL = "local"
+    const val PROVIDER_REMOTE = "remote"
+    const val DEFAULT_BASE_URL = "https://api.openai.com/v1"
+
+    private const val KEY_PROVIDER = "provider"
+    private const val KEY_BASE_URL = "provider_base_url"
+    private const val KEY_MODEL = "provider_model"
+    private const val KEY_API_KEY = "provider_api_key"
 }

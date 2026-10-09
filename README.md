@@ -18,6 +18,7 @@ O único acesso à rede é o download dos pesos no primeiro uso — depois disso
 | Integração | Kotlin + JNI sobre a C API da Cactus | — |
 | TTS | `TextToSpeech` nativo + pitch infantil | sim |
 | UI + mascote | Jetpack Compose (Canvas pixel art, 100% código) | — |
+| Cérebro (opcional) | Provedor OpenAI-compatible (function calling) | não — só no modo API |
 
 ## Estrutura
 
@@ -50,6 +51,22 @@ wake word → AudioRecord 16 kHz mono → Whistle (STT) → Needle 3 (tool call)
 
 O engine é **process-global e não thread-safe**: o `NeedleEngine` serializa todas
 as chamadas e o `CatarinaBrain` é o único dono da conversa.
+
+## Cérebro local ou na nuvem
+
+O padrão é **local** (Needle 3). Nas Configurações dá para ligar **Cérebro na
+nuvem (API)**: um provedor **OpenAI-compatible** (OpenAI, Groq, Ollama na LAN,
+etc.) com function calling. Nesse modo:
+
+- o **STT continua local** (Whistle) — só o texto sai do aparelho;
+- o **mesmo `tools.json`** vira a lista de `tools` do provedor, e o mesmo
+  `CallResolver`/`ToolExecutor` executa: as ferramentas seguem no aparelho;
+- o modelo devolve a resposta em linguagem natural (o `ANSWER`), então há
+  conversa, memória de turno e português sem fine-tune.
+
+Campos: URL base (incluindo `/v1`), modelo e API key (guardada em prefs privadas
+do app; use **https** para provedores na internet — `http` só para rede local).
+É opt-in explícito e quebra o "zero nuvem" do modo local.
 
 ## Ferramentas
 
@@ -134,12 +151,15 @@ empacotamento do `.cact`), pra rodar no notebook. Ver `training/README.md`.
 - Inferência nunca toca a rede.
 - Telemetria do engine desligada na build: `NEEDLE_TELEMETRY=0`, `DO_NOT_TRACK=1`.
 - Zero Google / OpenAI no pipeline.
+- Exceção única: o modo **Cérebro na nuvem (API)** é opt-in e manda só o texto
+  transcrito ao provedor configurado — nesse caso não há "zero nuvem".
 
 ## Status
 
 Implementado: engine/tools/service/assistente, download automático dos pesos,
-mascote animada (Compose Canvas) com bolha flutuante opt-in, Quick Settings
-tile, gate de root opt-in e build remoto via Actions. Falta assinatura release.
+mascote em pixel art (Compose Canvas) com bolha flutuante opt-in, Quick Settings
+tile, gate de root opt-in, modo provedor externo (API OpenAI-compatible) opt-in
+e build remoto via Actions. Falta assinatura release.
 Achados do smoke test no A32 e o que ainda depende de fine-tune estão em
 `docs/catarina-needle-apk.md` (§14).
 
@@ -148,9 +168,12 @@ Achados do smoke test no A32 e o que ainda depende de fine-tune estão em
 - [x] Estrutura, engine, JNI, tools, service, assistente
 - [x] Download automático dos pesos + progresso (anel na mascote)
 - [x] Mascote animada (Compose Canvas) + bolha flutuante opt-in
+- [x] Mascote em pixel art (grid rasterizado, sem assets)
 - [x] Quick Settings tile
 - [x] Gate de root opt-in (toggle nas Configurações)
+- [x] Cérebro externo opt-in (API OpenAI-compatible com function calling)
 - [ ] Fine-tune em português (comandos reais)
+- [ ] Confirmação de ação sensível por voz (hoje só pede e não retoma)
 - [ ] KWS dedicado no lugar da wake word por transcrição
 - [ ] Medir latência / RAM / bateria no dia a dia
 

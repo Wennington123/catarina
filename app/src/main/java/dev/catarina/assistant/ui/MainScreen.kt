@@ -21,6 +21,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,8 +34,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import dev.catarina.assistant.core.RemoteBrain
 import dev.catarina.assistant.service.CatarinaService
 import dev.catarina.assistant.state.AppSettings
 import dev.catarina.assistant.state.AssistantStateBus
@@ -66,6 +70,12 @@ fun MainScreen(
     var rootOn by remember { mutableStateOf(AppSettings.rootEnabled) }
     var rootChecking by remember { mutableStateOf(false) }
     var rootAvailable by remember { mutableStateOf<Boolean?>(null) }
+
+    var providerRemote by remember { mutableStateOf(AppSettings.providerRemote) }
+    var baseUrl by remember { mutableStateOf(AppSettings.providerBaseUrl) }
+    var model by remember { mutableStateOf(AppSettings.providerModel) }
+    var apiKey by remember { mutableStateOf(AppSettings.providerApiKey) }
+    var testResult by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -169,6 +179,61 @@ fun MainScreen(
             },
         )
 
+        Spacer(Modifier.height(8.dp))
+        SettingRow(
+            title = "Cérebro na nuvem (API)",
+            subtitle = when {
+                !providerRemote ->
+                    "Local (Needle), 100% offline. Ligue para conversar e ter mais funções"
+                AppSettings.providerConfigured -> "Provedor: ${AppSettings.providerModel}"
+                else -> "Preencha URL e modelo abaixo"
+            },
+            checked = providerRemote,
+            onCheckedChange = { on ->
+                AppSettings.provider =
+                    if (on) AppSettings.PROVIDER_REMOTE else AppSettings.PROVIDER_LOCAL
+                providerRemote = on
+                testResult = null
+            },
+        )
+
+        AnimatedVisibility(visible = providerRemote) {
+            Column(Modifier.fillMaxWidth()) {
+                ProviderField("URL base (ex.: …/v1)", baseUrl) {
+                    baseUrl = it
+                    AppSettings.providerBaseUrl = it
+                }
+                ProviderField("Modelo", model) {
+                    model = it
+                    AppSettings.providerModel = it
+                }
+                ProviderField("API key", apiKey, password = true) {
+                    apiKey = it
+                    AppSettings.providerApiKey = it
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        testResult = "Testando…"
+                        scope.launch {
+                            testResult = withContext(Dispatchers.IO) { RemoteBrain.testConnection() }
+                        }
+                    },
+                    modifier = Modifier.widthIn(min = 220.dp),
+                ) {
+                    Text("Testar conexão")
+                }
+                testResult?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
         Spacer(Modifier.height(24.dp))
     }
 }
@@ -198,6 +263,26 @@ private fun SettingRow(
         Spacer(Modifier.size(12.dp))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
+}
+
+@Composable
+private fun ProviderField(
+    label: String,
+    value: String,
+    password: Boolean = false,
+    onChange: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = { Text(label) },
+        singleLine = true,
+        visualTransformation =
+            if (password) PasswordVisualTransformation() else VisualTransformation.None,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+    )
 }
 
 private fun phaseLabel(p: Phase): String = when (p) {

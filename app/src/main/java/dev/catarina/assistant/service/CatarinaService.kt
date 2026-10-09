@@ -250,7 +250,7 @@ class CatarinaService : Service() {
         when (turn.kind) {
             Turn.Kind.ACTED -> AssistantStateBus.flash(Phase.CELEBRATING)
             Turn.Kind.REFUSED, Turn.Kind.ERROR -> AssistantStateBus.flash(Phase.SAD)
-            Turn.Kind.CONFIRM -> Unit
+            Turn.Kind.CONFIRM, Turn.Kind.ANSWER -> Unit
         }
     }
 
