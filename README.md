@@ -25,13 +25,19 @@ O único acesso à rede é o download dos pesos no primeiro uso — depois disso
 
 ```
 mascote_anim/                # sprites da mascote (fonte única; o build empacota)
-├── sprite_sheet.png         # 448×64 = 7 frames de 64px, fundo transparente
+├── sprite_sheet.png         # 832×64 = 13 frames de 64px, fundo transparente
 └── mascot_config.json       # grid, pivô e animações (frames + frame_rate)
+
+scripts/
+├── fetch-engine.sh          # baixa o engine nativo da Cactus
+├── make-icon.py             # gera o ícone do app a partir da sprite
+└── engine_test.cpp          # teste nativo do caminho do JNI
 
 app/src/main/
 ├── cpp/                     # shim JNI (needle_jni.cpp) + CMake
 ├── assets/tools.json        # schemas das ferramentas
 ├── assets/ir/ac.json        # códigos IR do ar-condicionado
+├── res/mipmap-<dpi>/        # ícone adaptativo (gerado por scripts/make-icon.py)
 └── java/dev/catarina/assistant/
     ├── core/                # CatarinaBrain (dono único do engine) + RemoteBrain
     ├── engine/              # wrapper do engine + parser + schema/triggers das tools
@@ -72,6 +78,25 @@ O sheet tem 13 frames (`idle` 2, `talking` 3, `listening` 1, `sad` 1,
 `thinking` 2, `celebrating` 2, `booting` 1, `hearing` 1). O anel de escuta, os
 pontinhos de "pensando", o confetti e o anel de progresso são desenhados por
 código por cima do sprite.
+
+### Ícone do app
+
+O ícone também sai da sprite, não é desenhado à parte:
+
+```sh
+python3 scripts/make-icon.py
+```
+
+Ele lê o `idle_1` (frame 0 do `mascot_config.json`) e escreve:
+`mipmap-<dpi>/ic_launcher_foreground.png` (ícone adaptativo, figura inteira),
+`mipmap-<dpi>/ic_launcher_monochrome.png` (ícone temático do Android 13+) e
+`drawable-nodpi/ic_launcher.png` (notificação e tile). Redesenhou a mascote?
+Roda o script e o ícone acompanha.
+
+Os glifos pequenos (notificação e temático) levam só a **cabeça**, com os olhos e
+a boca vazados: num glifo de 24dp o corpo viraria um blob e, sem os furos, a
+cabeça também — o script inunda a partir da borda e transforma em furo todo
+detalhe escuro que está cercado de pele.
 
 ## Como funciona
 
