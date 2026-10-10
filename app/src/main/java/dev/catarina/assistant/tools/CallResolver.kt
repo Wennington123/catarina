@@ -24,20 +24,25 @@ object CallResolver {
         data object Refuse : Decision
     }
 
-    fun resolve(response: NeedleResponse): Decision =
-        resolveCalls(response.functionCalls, response.suppressedCalls)
+    fun resolve(response: NeedleResponse, allowed: Set<String>? = null): Decision =
+        resolveCalls(response.functionCalls, response.suppressedCalls, allowed)
 
     /**
      * Mesma decisao, a partir das chamadas cruas. Usado tambem pelo cerebro
      * remoto (OpenAI-compatible), que nao produz um `NeedleResponse`.
+     *
+     * `allowed` restringe as ferramentas aceitas (no modo local, as que casaram
+     * com algum `trigger` na fala); `null` nao filtra nada.
      */
     fun resolveCalls(
         calls: List<FunctionCall>,
         held: List<FunctionCall> = emptyList(),
+        allowed: Set<String>? = null,
     ): Decision {
         val target = dedupe(calls).ifEmpty { dedupe(held) }
-        if (target.isEmpty()) return Decision.Refuse
-        return Decision.Act(onePerTool(target))
+        val usable = if (allowed == null) target else target.filter { it.name in allowed }
+        if (usable.isEmpty()) return Decision.Refuse
+        return Decision.Act(onePerTool(usable))
     }
 
     private fun dedupe(calls: List<FunctionCall>): List<FunctionCall> =

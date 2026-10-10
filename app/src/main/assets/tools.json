@@ -24,7 +24,7 @@
   {
     "name": "set_torch",
     "description": "Turn the flashlight (torch) on or off.",
-    "triggers": ["\\b(lanterna|flash|tocha|flashlight|torch)\\b"],
+    "triggers": ["\\b(lanterna|flash|tocha|flashlight|torch|luz)\\b"],
     "parameters": {
       "type": "object",
       "properties": { "on": { "type": "boolean" } },
@@ -77,7 +77,7 @@
   {
     "name": "set_ac",
     "description": "Control the air conditioner: power, temperature and mode.",
-    "triggers": ["\\b(ar[- ]condicionado|air[- ]?con(ditioner)?|clima)\\b"],
+    "triggers": ["\\b(ar[- ]?condicionado|air[- ]?con(ditioner)?|clima)\\b", "\\bar\\b"],
     "parameters": {
       "type": "object",
       "properties": {

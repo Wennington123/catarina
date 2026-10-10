@@ -3,6 +3,7 @@ package dev.catarina.assistant.core
 import android.content.Context
 import dev.catarina.assistant.engine.NeedleEngine
 import dev.catarina.assistant.engine.NeedleResponse
+import dev.catarina.assistant.engine.ToolTriggers
 import dev.catarina.assistant.model.ModelRepository
 import dev.catarina.assistant.state.AppSettings
 import dev.catarina.assistant.state.AssistantStateBus
@@ -32,6 +33,9 @@ class CatarinaBrain(private val context: Context) {
 
     /** Cerebro remoto (OpenAI-compatible); construido sob demanda. */
     private val remote: RemoteBrain by lazy { RemoteBrain(executor, toolsJson) }
+
+    /** Regex por ferramenta — decide se o pedido falado e um comando conhecido. */
+    private val triggers by lazy { ToolTriggers.parse(toolsJson) }
 
     @Volatile
     private var loaded = false
@@ -81,9 +85,15 @@ class CatarinaBrain(private val context: Context) {
         }
         return mutex.withLock {
             withContext(Dispatchers.IO) {
+                // Transcreve so pra julgar o pedido: o engine emite alguma
+                // chamada quase sempre e, quando nada casa, chuta a ferramenta
+                // mais generica (era o "tudo vira brilho 100%").
+                val heard = NeedleEngine.transcribe(pcm)?.let(::transcriptOf)
+                val allowed = heard?.let { ToolTriggers.matching(triggers, it) }
+                if (allowed != null && allowed.isEmpty()) return@withContext UNKNOWN
                 val response = NeedleEngine.completeAudio(pcm)
                     ?: return@withContext Turn("Falha no engine: ${NeedleEngine.lastError()}", "", Turn.Kind.ERROR)
-                decide(response)
+                decide(response, allowed)
             }
         }
     }
@@ -96,9 +106,11 @@ class CatarinaBrain(private val context: Context) {
         }
         return mutex.withLock {
             withContext(Dispatchers.IO) {
+                val allowed = ToolTriggers.matching(triggers, text)
+                if (allowed.isEmpty()) return@withContext UNKNOWN
                 val response = NeedleEngine.completeText(text)
                     ?: return@withContext Turn("Falha no engine: ${NeedleEngine.lastError()}", "", Turn.Kind.ERROR)
-                decide(response)
+                decide(response, allowed)
             }
         }
     }
@@ -109,19 +121,16 @@ class CatarinaBrain(private val context: Context) {
 
     /** Texto puro do Whistle (STT local do modo remoto). */
     private suspend fun transcribeText(pcm: FloatArray): String? = mutex.withLock {
-        withContext(Dispatchers.IO) {
-            val json = NeedleEngine.transcribe(pcm) ?: return@withContext null
-            runCatching { JSONObject(json).optString("text") }
-                .getOrNull()
-                ?.trim()
-                ?.ifEmpty { null }
-        }
+        withContext(Dispatchers.IO) { NeedleEngine.transcribe(pcm)?.let(::transcriptOf) }
     }
 
-    private fun decide(response: NeedleResponse): Turn =
-        when (val decision = CallResolver.resolve(response)) {
-            is CallResolver.Decision.Refuse ->
-                Turn("Nao consigo fazer isso.", "Nao consigo fazer isso.", Turn.Kind.REFUSED)
+    /** Campo `text` da resposta do Whistle. */
+    private fun transcriptOf(json: String): String? =
+        runCatching { JSONObject(json).optString("text").trim() }.getOrNull()?.ifEmpty { null }
+
+    private fun decide(response: NeedleResponse, allowed: Set<String>? = null): Turn =
+        when (val decision = CallResolver.resolve(response, allowed)) {
+            is CallResolver.Decision.Refuse -> UNKNOWN
 
             is CallResolver.Decision.Act -> {
                 val results = decision.calls.map { executor.execute(it) }
@@ -132,6 +141,13 @@ class CatarinaBrain(private val context: Context) {
                 )
             }
         }
+
+    /** Pedido que nao casa com nenhum comando conhecido. */
+    private val UNKNOWN = Turn(
+        "Nao conheco esse comando. Toque em \"O que ela faz\" pra ver o que eu entendo.",
+        "Nao conheco esse comando.",
+        Turn.Kind.REFUSED,
+    )
 
     private companion object {
         const val SYSTEM = "device: phone; locale: pt-BR"

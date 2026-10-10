@@ -33,7 +33,7 @@ app/src/main/
 ├── assets/ir/ac.json        # códigos IR do ar-condicionado
 └── java/dev/catarina/assistant/
     ├── core/                # CatarinaBrain (dono único do engine) + RemoteBrain
-    ├── engine/              # wrapper do engine + parser + schema das tools
+    ├── engine/              # wrapper do engine + parser + schema/triggers das tools
     ├── audio/               # captura 16 kHz mono + VAD + SoundKit/MascotSounds
     ├── model/               # download dos pesos com hash
     ├── tools/               # ToolExecutor + CallResolver (dedupe)
@@ -75,12 +75,36 @@ código por cima do sprite.
 ## Como funciona
 
 ```
-wake word → AudioRecord 16 kHz mono → Whistle (STT) → Needle 3 (tool call)
-          → CallResolver (dedupe) → ToolExecutor → som fofo
+wake word → AudioRecord 16 kHz mono → Whistle (STT)
+          → filtro de triggers: é um comando conhecido? não → recusa
+          → Needle 3 (tool call) → CallResolver (dedupe) → ToolExecutor → som fofo
 ```
 
 O engine é **process-global e não thread-safe**: o `NeedleEngine` serializa todas
 as chamadas e o `CatarinaBrain` é o único dono da conversa.
+
+## Comandos que ela entende
+
+Em português o Needle acerta a ferramenta pelo `trigger` (regex por ferramenta em
+`assets/tools.json`), não pela confiança. O app usa esses mesmos `triggers` como
+filtro: **se o pedido não casa com nenhum, ela recusa** em vez de chutar uma
+ferramenta — era o "tudo vira brilho 100%". Estes exemplos casam:
+
+| Peça | Exemplos |
+|---|---|
+| Lanterna | "liga a lanterna", "acende a luz", "desliga a lanterna" |
+| Wi-Fi | "liga o wi-fi", "desliga o wifi" |
+| Bluetooth | "liga o bluetooth" |
+| Brilho | "brilho em 40" |
+| Volume | "volume no 30", "aumenta o som" |
+| Abrir app | "abre o WhatsApp" |
+| Notificação | "me lembra de tomar água" |
+| Mensagem | "manda mensagem pro João" |
+| Ar-condicionado | "liga o ar em 22" (precisa de emissor IR) |
+| Comando | "roda o comando svc wifi enable" (com root) |
+
+Fora desses padrões ela responde que não conhece — conversa aberta é no modo API.
+A mesma lista aparece no app, na seção *Comandos que ela entende*.
 
 ## Cérebro local ou na nuvem
 
@@ -136,10 +160,12 @@ existe.
 | `send_sms` | envia SMS | `SEND_SMS` |
 | `run_shell` | comando (allowlist) | root |
 
-Não há confirmação: se o engine pediu a ferramenta, ela executa. O `CallResolver`
-só remove chamadas duplicadas e, em conflito (mesma ferramenta com argumentos
-diferentes), fica com a primeira. Em português o Needle devolve confiança
-0.02–0.30 — pedir confirmação nesse cenário significava **nunca executar nada**.
+Não há confirmação: se o engine pediu a ferramenta, ela executa — mas **só depois
+que o pedido casou com o `trigger`** da ferramenta (ver *Comandos que ela
+entende*). O `CallResolver` remove chamadas duplicadas e, em conflito (mesma
+ferramenta com argumentos diferentes), fica com a primeira. Em português o Needle
+devolve confiança 0.02–0.30 — pedir confirmação nesse cenário significava **nunca
+executar nada**.
 
 O caminho root (`svc` para Wi-Fi/Bluetooth/brilho e o `run_shell`) é **opt-in**:
 só roda com o toggle *Extras (root)* ligado nas Configurações do app — e com
@@ -214,10 +240,10 @@ empacotamento do `.cact`), pra rodar no notebook. Ver `training/README.md`.
 
 Implementado: engine/tools/service/assistente, download automático dos pesos,
 mascote em pixel art (sprite sheet em `mascote_anim/`) com bolha flutuante
-opt-in, sons fofos sintetizados (sem fala), banner de capacidades na abertura,
-execução direta (sem confirmação de ação), Quick Settings tile, gate de root
-opt-in, modo provedor externo (API OpenAI-compatible) opt-in e build remoto via
-Actions. Falta assinatura release.
+opt-in, sons fofos sintetizados (sem fala), banner de capacidades e seção de
+comandos na tela, execução direta (sem confirmação) com filtro por `trigger`,
+Quick Settings tile, gate de root opt-in, modo provedor externo (API
+OpenAI-compatible) opt-in e build remoto via Actions. Falta assinatura release.
 Achados do smoke test no A32 e o que ainda depende de fine-tune estão em
 `docs/catarina-needle-apk.md` (§14).
 
@@ -233,6 +259,7 @@ Achados do smoke test no A32 e o que ainda depende de fine-tune estão em
 - [x] Sons fofos sintetizados no app (sem fala / TTS)
 - [x] Banner de capacidades na abertura (dispensável e reabrível)
 - [x] Executa direto no pedido — **sem confirmação** (o gate em PT travava tudo)
+- [x] Seção de comandos na tela + filtro por `trigger` (o que não é comando é recusado)
 - [ ] Cérebro via **Termux (ponte ACP)** sobre o `cmd acp` — para quem só tem o
       Command Code e nenhuma API key (ver *Cérebro local ou na nuvem*)
 - [ ] Configurações: escolher entre **API** e **Termux** (os dois modos lado a

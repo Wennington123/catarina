@@ -189,19 +189,32 @@ Cada turno devolve um JSON:
 Roteamento:
 
 ```kotlin
-val r = engine.complete(text)
+// 1. o pedido e um comando conhecido? (regex `triggers` do tools.json)
+val allowed = ToolTriggers.matching(triggers, texto)
+if (allowed.isEmpty()) return refuse("Não conheço esse comando")
+
+// 2. so entao o engine decide a chamada, e o que nao casar com o trigger cai fora
+val r = engine.complete(texto)
 when {
-  r.calls.isNotEmpty() || r.suppressed.isNotEmpty() -> execute(r.bestCalls)  // age
-  else -> say("Não consigo fazer isso aqui")                                // recusa
+  r.calls.isNotEmpty() || r.suppressed.isNotEmpty() -> execute(r.bestCalls, allowed)
+  else -> refuse("Não conheço esse comando")
 }
 ```
 
 - `function_calls` vazio = recusa (off-topic) — **sempre** tratar.
-- **Sem confirmação.** Se há chamada, ela executa. Em português o Needle devolve
-  confiança 0.02–0.30: qualquer piso que exigisse confirmação travava tudo no
-  "Confirma?" e **nada era executado** — era o sintoma de "ela não faz nada do
-  que eu peço". O que ficou no lugar do gate: dedupe e, em conflito (mesma
-  ferramenta com argumentos diferentes), fica a primeira que o modelo pediu.
+- **Filtro por `trigger` (modo local).** O engine emite alguma chamada quase
+  sempre; quando nada casa ele chuta a ferramenta mais genérica (`set_brightness`,
+  de parâmetro único) — foi o "tudo vira brilho 100%". `ToolTriggers` casa a fala
+  contra os `triggers` do `tools.json`; sem nenhum casando, o turno vira recusa
+  sem executar. É a mesma lista que guia a seção *Comandos que ela entende* no
+  app. No modo remoto o filtro não se aplica (o provedor roteia pela
+  `description` e acerta em PT).
+- **Sem confirmação.** Se há chamada e ela passou pelo filtro, executa. Em
+  português o Needle devolve confiança 0.02–0.30: qualquer piso que exigisse
+  confirmação travava tudo no "Confirma?" e **nada era executado** — era o
+  sintoma de "ela não faz nada do que eu peço". O que ficou no lugar do gate:
+  dedupe e, em conflito (mesma ferramenta com argumentos diferentes), a primeira
+  que o modelo pediu.
 - Argumentos só vêm com evidência no texto; campos opcionais podem faltar.
 - `validation.ungrounded` lista campos não ancorados — recusar.
 - Environment facts opcionais: `date`, `locale`, `device`, `battery`, `network`,
@@ -239,12 +252,14 @@ Com **root (Magisk)**, amplia: `svc wifi/bluetooth`, `settings put`, acesso a
   evento — armar escuta, te ouvir, sucesso, recusa e "tagarelar".
   A boca da mascote anima porque a fase vira `SPEAKING` pela duração do som.
   Toca em `USAGE_MEDIA`/`SONIFICATION` (volume de mídia, previsível).
-- **Se não sair som**, o logcat diz onde parou: a tag `MascotSounds` registra
-  cada etapa (criar o `AudioTrack`, inicializar, `write`, `play`). Antes tudo
-  ficava dentro de um único `runCatching`, então uma falha virava silêncio sem
-  nenhuma pista. A síntese em si está validada: os cinco sons saem com pico
-  ~16k e RMS ~4,4k (áudio real, não buffer vazio). Checar também o **volume de
-  mídia** do aparelho — é ele que rege `USAGE_MEDIA`.
+- **Se não sair som**, toque em *Testar som* nas Configurações: ele mostra na
+  própria tela o **volume de mídia** e o que o `AudioTrack` respondeu (criou?
+  inicializou? escreveu? tocou?). Tocar áudio **não exige permissão** no Android
+  (só gravar exige) — então o suspeito útil é o volume de mídia, que rege
+  `USAGE_MEDIA`. O logcat dá o mesmo detalhe pela tag `MascotSounds`, que
+  registra cada etapa; antes tudo ficava dentro de um único `runCatching` e uma
+  falha virava silêncio sem pista. A síntese em si está validada: os cinco sons
+  saem com pico ~16k e RMS ~4,4k (áudio real, não buffer vazio).
 
 ## 10. Privacidade e telemetria
 

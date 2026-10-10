@@ -1,6 +1,8 @@
 package dev.catarina.assistant.ui
 
+import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
@@ -39,6 +41,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import dev.catarina.assistant.audio.MascotSound
+import dev.catarina.assistant.audio.MascotSounds
 import dev.catarina.assistant.core.RemoteBrain
 import dev.catarina.assistant.service.CatarinaService
 import dev.catarina.assistant.state.AppSettings
@@ -78,6 +82,7 @@ fun MainScreen(
     var apiKey by remember { mutableStateOf(AppSettings.providerApiKey) }
     var testResult by remember { mutableStateOf<String?>(null) }
     var showCapabilities by remember { mutableStateOf(!AppSettings.capabilitiesSeen) }
+    var soundReport by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -136,7 +141,35 @@ fun MainScreen(
             Text("O que ela faz")
         }
 
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = {
+                val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                val volume = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+                val maxVolume = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                soundReport = "volume de mídia: $volume/$maxVolume — " +
+                    MascotSounds.play(MascotSound.HAPPY)
+            },
+            modifier = Modifier.widthIn(min = 220.dp),
+        ) {
+            Text("Testar som")
+        }
+        soundReport?.let { report ->
+            Spacer(Modifier.height(4.dp))
+            Text(
+                report,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+
         Spacer(Modifier.height(24.dp))
+        HorizontalDivider()
+        Spacer(Modifier.height(8.dp))
+        CommandsSection()
+
+        Spacer(Modifier.height(16.dp))
         HorizontalDivider()
         Spacer(Modifier.height(8.dp))
         Text("Configurações", style = MaterialTheme.typography.titleSmall)
@@ -254,6 +287,47 @@ fun MainScreen(
         Spacer(Modifier.height(24.dp))
     }
 }
+
+/**
+ * Comandos que ela atende, com um exemplo que realmente casa com o `trigger` da
+ * ferramenta (`assets/tools.json`). Fora desses padroes ela recusa — antes
+ * chutava a ferramenta mais generica e "tudo virava brilho 100%".
+ */
+@Composable
+private fun CommandsSection() {
+    Column(Modifier.fillMaxWidth()) {
+        Text("Comandos que ela entende", style = MaterialTheme.typography.titleSmall)
+        Spacer(Modifier.height(6.dp))
+        COMMANDS.forEach { (what, how) ->
+            Text(
+                "• $what: $how",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(vertical = 2.dp),
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "Ela atende esses pedidos; fora deles responde que não conhece. " +
+                "Para conversa e perguntas abertas, ligue o \"Cérebro na nuvem\".",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** Exemplos escritos pra casar com os `triggers` de `assets/tools.json`. */
+private val COMMANDS = listOf(
+    "Lanterna" to "\"liga a lanterna\" / \"acende a luz\" / \"desliga a lanterna\"",
+    "Wi-Fi" to "\"liga o wi-fi\" / \"desliga o wifi\"",
+    "Bluetooth" to "\"liga o bluetooth\"",
+    "Brilho" to "\"brilho em 40\"",
+    "Volume" to "\"volume no 30\"",
+    "Abrir app" to "\"abre o WhatsApp\"",
+    "Notificação" to "\"me lembra de tomar água\"",
+    "Mensagem" to "\"manda mensagem pro João\"",
+    "Ar-condicionado" to "\"liga o ar em 22\" (precisa de emissor IR)",
+    "Comando" to "\"roda o comando svc wifi enable\" (com root)",
+)
 
 /**
  * Banner de abertura: o que ela sabe fazer hoje, em linguagem simples. Some

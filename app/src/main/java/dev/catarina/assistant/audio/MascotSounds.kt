@@ -104,7 +104,11 @@ object MascotSounds {
 
     private var current: AudioTrack? = null
 
-    fun play(sound: MascotSound) {
+    /**
+     * Toca o som e devolve o que aconteceu. O retorno existe pro teste de som na
+     * tela: sem `adb`, o app mostra em qual passo parou e o volume de midia.
+     */
+    fun play(sound: MascotSound): String {
         val pcm = SoundKit.pcm(sound)
         stop()
 
@@ -128,20 +132,20 @@ object MascotSounds {
                 .build()
         }.getOrElse {
             Log.w(TAG, "nao consegui criar o AudioTrack ($sound)", it)
-            return
+            return "falhou ao criar o AudioTrack: ${it.message}"
         }
 
         if (track.state != AudioTrack.STATE_INITIALIZED) {
             Log.w(TAG, "AudioTrack nao inicializou ($sound)")
             runCatching { track.release() }
-            return
+            return "AudioTrack nao inicializou (estado ${track.state})"
         }
 
         val written = track.write(pcm, 0, pcm.size)
         if (written <= 0) {
             Log.w(TAG, "write devolveu $written ($sound)")
             runCatching { track.release() }
-            return
+            return "write devolveu $written"
         }
 
         current = track
@@ -149,7 +153,9 @@ object MascotSounds {
             Log.w(TAG, "play falhou ($sound)", it)
             current = null
             runCatching { track.release() }
+            return "play falhou: ${it.message}"
         }
+        return "tocou ${pcm.size} amostras (${SoundKit.durationMs(sound)} ms)"
     }
 
     /** Interrompe o som atual (ex.: outro comeca, ou o service morre). */
