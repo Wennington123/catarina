@@ -96,10 +96,10 @@ class CatarinaBrain(private val context: Context) {
                 // mais generica (era o "tudo vira brilho 100%").
                 val heard = NeedleEngine.transcribe(pcm)?.let(::transcriptOf)
                 val allowed = heard?.let { ToolTriggers.matching(triggers, it) }
-                if (allowed != null && allowed.isEmpty()) return@withContext UNKNOWN
+                if (allowed != null && allowed.isEmpty()) return@withContext unknown(heard.orEmpty())
                 val response = NeedleEngine.completeAudio(pcm)
                     ?: return@withContext Turn("Falha no engine: ${NeedleEngine.lastError()}", "", Turn.Kind.ERROR)
-                decide(response, allowed)
+                decide(response, allowed, heard ?: "(sem transcricao)")
             }
         }
     }
@@ -113,10 +113,10 @@ class CatarinaBrain(private val context: Context) {
         return mutex.withLock {
             withContext(Dispatchers.IO) {
                 val allowed = ToolTriggers.matching(triggers, text)
-                if (allowed.isEmpty()) return@withContext UNKNOWN
+                if (allowed.isEmpty()) return@withContext unknown(text)
                 val response = NeedleEngine.completeText(text)
                     ?: return@withContext Turn("Falha no engine: ${NeedleEngine.lastError()}", "", Turn.Kind.ERROR)
-                decide(response, allowed)
+                decide(response, allowed, text)
             }
         }
     }
@@ -134,9 +134,9 @@ class CatarinaBrain(private val context: Context) {
     private fun transcriptOf(json: String): String? =
         runCatching { JSONObject(json).optString("text").trim() }.getOrNull()?.ifEmpty { null }
 
-    private fun decide(response: NeedleResponse, allowed: Set<String>? = null): Turn =
+    private fun decide(response: NeedleResponse, allowed: Set<String>?, heard: String): Turn =
         when (val decision = CallResolver.resolve(response, allowed)) {
-            is CallResolver.Decision.Refuse -> UNKNOWN
+            is CallResolver.Decision.Refuse -> noAction(heard)
 
             is CallResolver.Decision.Act -> {
                 val results = decision.calls.map { executor.execute(it) }
@@ -148,10 +148,21 @@ class CatarinaBrain(private val context: Context) {
             }
         }
 
-    /** Pedido que nao casa com nenhum comando conhecido. */
-    private val UNKNOWN = Turn(
-        "Nao conheco esse comando. Toque em \"O que ela faz\" pra ver o que eu entendo.",
+    /**
+     * Pedido que nao casa com nenhum comando conhecido. Mostra o que foi ouvido:
+     * sem isso, "nao conheco esse comando" nao diz se o STT transcreveu errado ou
+     * se a fala estava mesmo fora do vocabulario.
+     */
+    private fun unknown(heard: String): Turn = Turn(
+        "Nao conheco esse comando. Ouvi: \"$heard\"",
         "Nao conheco esse comando.",
+        Turn.Kind.REFUSED,
+    )
+
+    /** Casou com uma ferramenta, mas o engine nao devolveu chamada nenhuma. */
+    private fun noAction(heard: String): Turn = Turn(
+        "Ouvi \"$heard\", mas nao consegui montar a acao.",
+        "Nao consegui montar a acao.",
         Turn.Kind.REFUSED,
     )
 

@@ -151,8 +151,10 @@ ferramenta — era o "tudo vira brilho 100%". Estes exemplos casam:
 | Ar-condicionado | "liga o ar em 22" (precisa de emissor IR) |
 | Comando | "roda o comando svc wifi enable" (com root) |
 
-Fora desses padrões ela responde que não conhece — conversa aberta é no modo API.
-A mesma lista aparece no app, na seção *Comandos que ela entende*.
+Fora desses padrões ela responde que não conhece **e mostra o que ouviu**
+("Ouvi: ...") — é assim que se distingue "o reconhecimento errou" de "essa fala
+está fora do vocabulário". Conversa aberta é no modo API. A mesma lista aparece
+no app, na seção *Comandos que ela entende*.
 
 ## Cérebro local ou na nuvem
 

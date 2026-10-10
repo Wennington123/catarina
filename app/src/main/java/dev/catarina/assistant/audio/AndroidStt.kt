@@ -70,11 +70,12 @@ object AndroidStt {
                             ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                             ?.firstOrNull()
                             ?.trim()
+                        Log.i(TAG, "reconheceu: ${said ?: "(nada)"}")
                         finish(said?.ifEmpty { null })
                     }
 
                     override fun onError(error: Int) {
-                        Log.w(TAG, "reconhecedor devolveu erro $error")
+                        Log.w(TAG, "reconhecedor devolveu erro $error (${erroNome(error)})")
                         finish(null)
                     }
 
@@ -104,4 +105,21 @@ object AndroidStt {
             }
             runCatching { recognizer.startListening(intent) }.onFailure { finish(null) }
         }
+
+    /** Nome do erro do `SpeechRecognizer` — o codigo cru nao diz nada no log. */
+    private fun erroNome(error: Int): String = when (error) {
+        SpeechRecognizer.ERROR_AUDIO -> "audio"
+        SpeechRecognizer.ERROR_CLIENT -> "client"
+        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "sem permissao"
+        SpeechRecognizer.ERROR_NETWORK -> "rede"
+        SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "timeout de rede"
+        SpeechRecognizer.ERROR_NO_MATCH -> "nao casou nada"
+        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "reconhecedor ocupado"
+        SpeechRecognizer.ERROR_SERVER -> "servidor"
+        SpeechRecognizer.ERROR_SERVER_DISCONNECTED -> "servidor desconectado"
+        SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "silencio"
+        SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED -> "idioma nao suportado"
+        SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> "idioma indisponivel"
+        else -> "desconhecido"
+    }
 }
