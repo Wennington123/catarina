@@ -13,7 +13,7 @@ O único acesso à rede é o download dos pesos no primeiro uso — depois disso
 
 | Camada | Tecnologia | Offline |
 |---|---|---|
-| Voz → texto (PT) | Reconhecedor do Android em `pt-BR` (opt-out) | se o pacote de idioma estiver baixado |
+| Voz → texto (PT) | **Vosk pt-BR** (modelo local, ~31 MB) | sim |
 | Voz → texto (EN) | Whistle (16.9 MB) — **não tem português** | sim |
 | Intenção → ação | Needle 3 (8–29 MB) | sim |
 | Integração | Kotlin + JNI sobre a C API da Cactus | — |
@@ -101,7 +101,7 @@ detalhe escuro que está cercado de pele.
 ## Como funciona
 
 ```
-"Ouvir agora" → reconhecedor do Android (pt-BR) → texto
+"Ouvir agora" → AudioCapture (16 kHz mono + VAD) → Vosk pt-BR → texto
               → filtro de triggers: é um comando conhecido? não → recusa
               → Needle 3 (tool call) → CallResolver (dedupe) → ToolExecutor → som fofo
 "Sempre ouvindo" → wake word (Whistle, inglês) → grava → mesmo caminho
@@ -110,25 +110,29 @@ detalhe escuro que está cercado de pele.
 O engine é **process-global e não thread-safe**: o `NeedleEngine` serializa todas
 as chamadas e o `CatarinaBrain` é o único dono da conversa.
 
-## Voz em português (e por que o turno usa o Android)
+## Voz em português (e por que o STT é o Vosk)
 
 O STT do Needle é o **Whistle**, e o Whistle **não tem português** — a lista
 oficial é inglês, alemão, francês, espanhol, italiano, holandês e polonês. Com
-ele, fala em PT vira texto sem sentido: nenhum `trigger` casa e **nada é
-executado**. Era esse o "ela não ouve / não faz nada", com o microfone
-funcionando normalmente.
+ele, fala em PT vira texto sem sentido, nenhum `trigger` casa e nada é executado.
+Era esse o "ela não ouve / não faz nada", com o microfone funcionando.
 
-Por isso o turno de voz passa pelo **reconhecedor do Android em `pt-BR`**
-(`AndroidStt`, ligado por padrão nas Configurações): ele entrega o texto e o
-**Needle continua decidindo a ferramenta** localmente — o resto do pipeline não
-muda. Pedimos `EXTRA_PREFER_OFFLINE`, que usa o pacote de idioma já baixado
-quando existe.
+A primeira tentativa foi usar o reconhecedor do Android em `pt-BR`. Não serve
+para este projeto: **o aparelho alvo não tem reconhecedor instalado** (é
+degooglado), então o `SpeechRecognizer` caía no `CatarinaRecognitionService` — o
+próprio app — que transcrevia com o Whistle. O resultado era um misto de inglês,
+espanhol e pedaços de português.
 
-- **Custo:** o reconhecedor do sistema costuma ser do Google, então ligado ele
-  quebra o "zero Google". É opt-out: desligando, volta o Whistle local (útil só
-  em inglês).
+A solução é o **Vosk com o modelo pequeno pt-BR** (`vosk-model-small-pt-0.3`,
+~31 MB): baixado no primeiro uso, igual aos pesos do Needle, e rodando 100%
+offline, sem Google. O turno de voz grava com o mesmo `AudioCapture` (16 kHz mono
++ VAD) e manda o PCM pro Vosk; o texto segue pro Needle, que decide a ferramenta.
+
+- Nas Configurações dá para desligar o "modelo local" e usar o
+  `SpeechRecognizer` do sistema — só vale a pena se o aparelho tiver um
+  reconhecedor de verdade instalado.
 - **Wake word:** "Sempre ouvindo" ainda depende do Whistle para ouvir
-  "Catarina", ou seja, a hotword funciona em inglês. KWS dedicado está no
+  "Catarina", ou seja, a hotword funciona em inglês. KWS em pt-BR está no
   roadmap.
 
 ## Comandos que ela entende
@@ -282,17 +286,15 @@ empacotamento do `.cact`), pra rodar no notebook. Ver `training/README.md`.
 
 - Inferência nunca toca a rede.
 - Telemetria do engine desligada na build: `NEEDLE_TELEMETRY=0`, `DO_NOT_TRACK=1`.
-- Zero Google / OpenAI **no caminho do engine**: Needle e Whistle rodam local.
-- Exceções, ambas em Configurações: (1) o **STT do Android** para voz em pt-BR —
-  ligado por padrão porque o Whistle não tem português; é o reconhecedor do
-  sistema (normalmente Google) e usa o pacote offline quando existe; (2) o modo
-  **Cérebro na nuvem (API)**, opt-in, que manda só o texto transcrito ao provedor
-  configurado.
+- Tudo local: Needle, Whistle e agora o **Vosk pt-BR** rodam no aparelho — sem
+  Google, sem conta, e a inferência nunca toca a rede.
+- Exceção única, opt-in nas Configurações: o modo **Cérebro na nuvem (API)**, que
+  manda só o texto transcrito ao provedor configurado.
 
 ## Status
 
 Implementado: engine/tools/service/assistente, download automático dos pesos,
-voz em pt-BR pelo STT do Android (o Whistle do Needle não tem português),
+voz em pt-BR pelo Vosk local (o Whistle do Needle não tem português),
 mascote em pixel art (sprite sheet em `mascote_anim/`) com bolha flutuante
 opt-in, sons fofos sintetizados (sem fala), banner de capacidades e seção de
 comandos na tela, execução direta (sem confirmação) com filtro por `trigger`,
@@ -314,7 +316,7 @@ Achados do smoke test no A32 e o que ainda depende de fine-tune estão em
 - [x] Banner de capacidades na abertura (dispensável e reabrível)
 - [x] Executa direto no pedido — **sem confirmação** (o gate em PT travava tudo)
 - [x] Seção de comandos na tela + filtro por `trigger` (o que não é comando é recusado)
-- [x] Voz em pt-BR pelo STT do Android (o Whistle do Needle não tem português)
+- [x] Voz em pt-BR pelo **Vosk** offline (o Whistle do Needle não tem português, e o aparelho não traz reconhecedor do sistema)
 - [ ] Cérebro via **Termux (ponte ACP)** sobre o `cmd acp` — para quem só tem o
       Command Code e nenhuma API key (ver *Cérebro local ou na nuvem*)
 - [ ] Configurações: escolher entre **API** e **Termux** (os dois modos lado a

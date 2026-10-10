@@ -15,7 +15,7 @@ object AppSettings {
     private const val KEY_ROOT = "root_enabled"
     private const val KEY_OVERLAY = "overlay_enabled"
     private const val KEY_CAPABILITIES = "capabilities_seen"
-    private const val KEY_ANDROID_STT = "android_stt"
+    private const val KEY_STT_ENGINE = "stt_engine"
 
     private lateinit var prefs: SharedPreferences
 
@@ -41,17 +41,22 @@ object AppSettings {
         set(value) = prefs.edit().putBoolean(KEY_CAPABILITIES, value).apply()
 
     /**
-     * Voz em portugues: o turno passa pelo reconhecedor do **Android** (pt-BR) em
-     * vez do Whistle, que so entende ingles, alemao, frances, espanhol, italiano,
-     * holandes e polones. **Ligado por padrao** — sem isso o app nao entende uma
-     * palavra em PT (o texto sai como lixo e nada casa com os `triggers`).
+     * De onde vem o texto do turno de voz:
      *
-     * E o unico ponto fora do "zero Google": o reconhecedor do sistema costuma
-     * ser do Google. Desligado, volta pro Whistle local (util so em ingles).
+     * - [STT_VOSK] (**padrao**): modelo pt-BR do Vosk — offline, sem Google, e o
+     *   unico caminho que entende portugues. O Whistle (STT do Needle) so tem
+     *   en/de/fr/es/it/nl/pl, e o aparelho alvo nao traz reconhecedor do sistema.
+     * - [STT_SYSTEM]: o `SpeechRecognizer` do Android. So serve se o aparelho
+     *   tiver um reconhecedor de verdade instalado — sem isso ele cai no proprio
+     *   app (ver `CatarinaRecognitionService`), que transcreve com o Whistle.
+     *
+     * Com o Vosk desligado, o turno vai pro engine (Whistle), ou seja, so ingles.
      */
-    var androidStt: Boolean
-        get() = prefs.getBoolean(KEY_ANDROID_STT, true)
-        set(value) = prefs.edit().putBoolean(KEY_ANDROID_STT, value).apply()
+    var sttEngine: String
+        get() = prefs.getString(KEY_STT_ENGINE, STT_VOSK) ?: STT_VOSK
+        set(value) = prefs.edit().putString(KEY_STT_ENGINE, value).apply()
+
+    val sttVosk: Boolean get() = sttEngine == STT_VOSK
 
     /**
      * Porta unica do root: toggle do usuario E `su` disponivel. O probe do
@@ -97,6 +102,10 @@ object AppSettings {
     const val PROVIDER_LOCAL = "local"
     const val PROVIDER_REMOTE = "remote"
     const val DEFAULT_BASE_URL = "https://api.openai.com/v1"
+
+    /** Motores de STT do turno de voz (ver [sttEngine]). */
+    const val STT_VOSK = "vosk"
+    const val STT_SYSTEM = "system"
 
     private const val KEY_PROVIDER = "provider"
     private const val KEY_BASE_URL = "provider_base_url"

@@ -242,13 +242,19 @@ Com **root (Magisk)**, amplia: `svc wifi/bluetooth`, `settings put`, acesso a
 - **Idioma — o achado que quebra tudo em PT.** O Whistle (STT do Needle) só
   entende **en, de, fr, es, it, nl e pl**: **não tem português**. Fala em PT vira
   texto sem sentido, nenhum `trigger` casa e nada é executado — era o "ela não
-  ouve/não faz nada" com o microfone ok. Por isso o turno de voz vai pelo
-  **reconhecedor do Android em `pt-BR`** (`AndroidStt`, ligado por padrão, com
-  `EXTRA_PREFER_OFFLINE`) e o texto segue pro Needle, que decide a ferramenta. No
-  caminho do engine fixamos `needle_set_audio(language="en")` (antes o idioma
-  nunca era setado e ficava na detecção automática entre os 7). Custos: o
-  reconhecedor do sistema normalmente é do Google (quebra o "zero Google") e a
-  hotword "Catarina" segue dependendo do Whistle, ou seja, só funciona em inglês.
+  ouve/não faz nada" com o microfone ok. No caminho do engine fixamos
+  `needle_set_audio(language="en")` (antes o idioma nunca era setado e ficava na
+  detecção automática entre os 7).
+- **STT em português: Vosk.** Tentar o `SpeechRecognizer` do Android não serviu:
+  no aparelho alvo **não há reconhecedor instalado** (degooglado), então o
+  sistema caía no `CatarinaRecognitionService` — o próprio app — e devolvia a
+  saída do Whistle (texto misto de inglês/espanhol). Agora o turno usa o
+  **Vosk** com o modelo `vosk-model-small-pt-0.3` (~31 MB, baixado uma vez e
+  extraído em `models/vosk-pt/`): o mesmo `AudioCapture` de 16 kHz mono + VAD
+  entrega o PCM direto pro Vosk e o texto segue pro Needle. 100% offline, sem
+  Google. `AppSettings.sttEngine` escolhe entre `vosk` (padrão) e `system`.
+- A hotword "Catarina" segue dependendo do Whistle, ou seja, só funciona em
+  inglês (KWS em pt-BR no roadmap).
 - `AudioRecord` em **16 kHz mono** (exigência do Whistle).
 - VAD simples (energia/RMS) pra cortar silêncio antes de transcrever.
 - Microfone é recurso único: o `AudioRecord` do wake word e o do turno disputam

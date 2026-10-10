@@ -16,6 +16,7 @@ import dev.catarina.assistant.audio.AndroidStt
 import dev.catarina.assistant.audio.AudioCapture
 import dev.catarina.assistant.audio.MascotSound
 import dev.catarina.assistant.audio.MascotSounds
+import dev.catarina.assistant.audio.VoskStt
 import dev.catarina.assistant.audio.reactToTurn
 import dev.catarina.assistant.core.CatarinaBrain
 import dev.catarina.assistant.core.CatarinaBrain.Turn
@@ -150,24 +151,33 @@ class CatarinaService : Service() {
     }
 
     /**
-     * Um turno de voz: por padrao o reconhecedor do Android em pt-BR (o Whistle
-     * nao tem portugues) e o texto segue pro Needle; desligado, grava e manda o
-     * audio direto pro engine.
+     * Um turno de voz. O padrao e o **Vosk pt-BR** (offline, sem Google); o modo
+     * `system` usa o `SpeechRecognizer` do Android; e, sem nenhum dos dois, grava
+     * e manda o audio direto pro engine — caminho do Whistle, que so tem ingles.
      */
     private suspend fun listen(): Turn {
-        if (AppSettings.androidStt) {
+        if (AppSettings.sttVosk && VoskStt.ready) {
+            val pcm = withContext(Dispatchers.IO) { capture.recordUtterance() }
+            val heard = withContext(Dispatchers.Default) { VoskStt.transcribe(pcm) }
+            AssistantStateBus.set(Phase.THINKING)
+            return heardReply(heard)
+        }
+        if (AppSettings.sttEngine == AppSettings.STT_SYSTEM) {
             val heard = AndroidStt.listen(this)
             AssistantStateBus.set(Phase.THINKING)
-            return if (heard.isNullOrBlank()) {
-                Turn("Nao entendi o audio.", "Nao entendi.", Turn.Kind.REFUSED)
-            } else {
-                brain.handleText(heard)
-            }
+            return heardReply(heard)
         }
         val pcm = withContext(Dispatchers.IO) { capture.recordUtterance() }
         AssistantStateBus.set(Phase.THINKING)
         return brain.handleAudio(pcm)
     }
+
+    private suspend fun heardReply(heard: String?): Turn =
+        if (heard.isNullOrBlank()) {
+            Turn("Nao entendi o audio.", "Nao entendi.", Turn.Kind.REFUSED)
+        } else {
+            brain.handleText(heard)
+        }
 
     private fun runText(text: String) {
         scope.launch {

@@ -12,6 +12,7 @@ import dev.catarina.assistant.audio.AndroidStt
 import dev.catarina.assistant.audio.AudioCapture
 import dev.catarina.assistant.audio.MascotSound
 import dev.catarina.assistant.audio.MascotSounds
+import dev.catarina.assistant.audio.VoskStt
 import dev.catarina.assistant.audio.reactToTurn
 import dev.catarina.assistant.core.CatarinaBrain
 import dev.catarina.assistant.service.CatarinaService
@@ -81,22 +82,25 @@ class MainActivity : AppCompatActivity() {
                 brain.ensureLoaded()
                 AssistantStateBus.set(Phase.HEARING)
                 MascotSounds.play(MascotSound.HEAR)
-                val turn = if (AppSettings.androidStt) {
-                    val heard = AndroidStt.listen(this@MainActivity)
-                    AssistantStateBus.set(Phase.THINKING)
-                    if (heard.isNullOrBlank()) {
-                        CatarinaBrain.Turn(
-                            "Nao entendi o audio.",
-                            "Nao entendi.",
-                            CatarinaBrain.Turn.Kind.REFUSED,
-                        )
-                    } else {
-                        brain.handleText(heard)
+                val turn = when {
+                    AppSettings.sttVosk && VoskStt.ready -> {
+                        val pcm = withContext(Dispatchers.IO) { capture.recordUtterance() }
+                        val heard = withContext(Dispatchers.Default) { VoskStt.transcribe(pcm) }
+                        AssistantStateBus.set(Phase.THINKING)
+                        heardReply(heard)
                     }
-                } else {
-                    val pcm = withContext(Dispatchers.IO) { capture.recordUtterance() }
-                    AssistantStateBus.set(Phase.THINKING)
-                    brain.handleAudio(pcm)
+
+                    AppSettings.sttEngine == AppSettings.STT_SYSTEM -> {
+                        val heard = AndroidStt.listen(this@MainActivity)
+                        AssistantStateBus.set(Phase.THINKING)
+                        heardReply(heard)
+                    }
+
+                    else -> {
+                        val pcm = withContext(Dispatchers.IO) { capture.recordUtterance() }
+                        AssistantStateBus.set(Phase.THINKING)
+                        brain.handleAudio(pcm)
+                    }
                 }
                 AssistantStateBus.updateMessage(turn.status)
                 reactToTurn(turn)
@@ -107,6 +111,13 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
+    private suspend fun heardReply(heard: String?): CatarinaBrain.Turn =
+        if (heard.isNullOrBlank()) {
+            CatarinaBrain.Turn("Nao entendi o audio.", "Nao entendi.", CatarinaBrain.Turn.Kind.REFUSED)
+        } else {
+            brain.handleText(heard)
+        }
 
     private companion object {
         val PERMISSIONS = arrayOf(

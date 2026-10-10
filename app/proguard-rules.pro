@@ -5,3 +5,6 @@
 
 # Tipos do engine são instanciados/refletidos pelo shim.
 -keep class dev.catarina.assistant.engine.** { *; }
+
+# Vosk: as classes conversam com o JNI e o R8 não enxerga essas referências.
+-keep class org.vosk.** { *; }

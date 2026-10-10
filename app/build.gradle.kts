@@ -12,8 +12,8 @@ android {
         applicationId = "dev.catarina.assistant"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "0.9.2"
+        versionCode = 12
+        versionName = "0.10.0"
 
         ndk {
             // Só 64-bit: mantém o APK enxuto.
@@ -84,6 +84,10 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-service:2.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+
+    // STT em portugues, offline e sem Google (o Whistle do Needle nao tem PT e o
+    // aparelho alvo nao tem reconhecedor do sistema).
+    implementation("com.alphacephei:vosk-android:0.3.75")
 
     // Mascote e UI em Compose (Canvas + animate*AsState).
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))

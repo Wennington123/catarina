@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import dev.catarina.assistant.audio.AndroidStt
 import dev.catarina.assistant.audio.MascotSound
 import dev.catarina.assistant.audio.MascotSounds
+import dev.catarina.assistant.audio.VoskStt
 import dev.catarina.assistant.core.RemoteBrain
 import dev.catarina.assistant.service.CatarinaService
 import dev.catarina.assistant.state.AppSettings
@@ -84,7 +85,7 @@ fun MainScreen(
     var testResult by remember { mutableStateOf<String?>(null) }
     var showCapabilities by remember { mutableStateOf(!AppSettings.capabilitiesSeen) }
     var soundReport by remember { mutableStateOf<String?>(null) }
-    var androidSttOn by remember { mutableStateOf(AppSettings.androidStt) }
+    var voskOn by remember { mutableStateOf(AppSettings.sttVosk) }
 
     Column(
         modifier = Modifier
@@ -177,19 +178,22 @@ fun MainScreen(
         Text("Configurações", style = MaterialTheme.typography.titleSmall)
 
         SettingRow(
-            title = "Voz em português (STT do Android)",
+            title = "Voz em português (modelo local)",
             subtitle = when {
-                !AppSettings.androidStt ->
-                    "Desligado: usa o Whistle local, que não entende português"
+                AppSettings.sttVosk && VoskStt.ready ->
+                    "Vosk pt-BR rodando offline (~31 MB baixados no 1º uso)"
+                AppSettings.sttVosk ->
+                    "Vosk pt-BR baixa junto com os pesos, no primeiro uso"
                 AndroidStt.available(context) ->
-                    "Ligado: reconhecedor do sistema em pt-BR (quebra o \"zero Google\")"
+                    "Usando o reconhecedor do sistema"
                 else ->
-                    "Ligado, mas este aparelho não tem reconhecedor de voz"
+                    "Sem o Vosk é o reconhecedor do sistema — e aqui ele é o próprio app, que só tem inglês"
             },
-            checked = androidSttOn,
+            checked = voskOn,
             onCheckedChange = { on ->
-                AppSettings.androidStt = on
-                androidSttOn = on
+                AppSettings.sttEngine =
+                    if (on) AppSettings.STT_VOSK else AppSettings.STT_SYSTEM
+                voskOn = on
             },
         )
 

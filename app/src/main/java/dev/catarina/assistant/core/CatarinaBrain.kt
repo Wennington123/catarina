@@ -1,6 +1,7 @@
 package dev.catarina.assistant.core
 
 import android.content.Context
+import dev.catarina.assistant.audio.VoskStt
 import dev.catarina.assistant.engine.NeedleEngine
 import dev.catarina.assistant.engine.NeedleResponse
 import dev.catarina.assistant.engine.ToolTriggers
@@ -60,6 +61,13 @@ class CatarinaBrain(private val context: Context) {
                         onProgress(d, t, "whistle.cact")
                         AssistantStateBus.updateProgress(if (t > 0) d.toFloat() / t else null)
                     }
+                    if (AppSettings.sttVosk) {
+                        val vosk = models.ensureVoskPt { d, t ->
+                            onProgress(d, t, "vosk-model-small-pt.zip")
+                            AssistantStateBus.updateProgress(if (t > 0) d.toFloat() / t else null)
+                        }
+                        VoskStt.load(vosk)
+                    }
                     val tools = toolsJson
                     NeedleEngine.load(needle)
                     NeedleEngine.load(whistle)
@@ -67,8 +75,8 @@ class CatarinaBrain(private val context: Context) {
                     // O Whistle so entende en/de/fr/es/it/nl/pl — **nao tem
                     // portugues** — e antes o idioma nunca era setado (ficava na
                     // deteccao automatica entre esses 7). Fixamos "en" para o
-                    // caminho do engine; voz em PT vai pelo STT do Android
-                    // (AppSettings.androidStt).
+                    // caminho do engine; voz em PT vai pelo Vosk
+                    // (AppSettings.sttVosk).
                     NeedleEngine.setAudio(language = "en")
                 }
             } finally {
