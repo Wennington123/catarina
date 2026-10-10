@@ -47,15 +47,16 @@ object VoskStt {
             (pcm[it].coerceIn(-1f, 1f) * Short.MAX_VALUE).toInt().toShort()
         }
 
-        return runCatching {
+        return runCatching<String?> {
             Recognizer(loaded, SAMPLE_RATE).use { rec ->
                 rec.acceptWaveForm(samples, samples.size)
-                val text = JSONObject(rec.finalResult()).optString("text").trim()
+                // `finalResult` e propriedade: o getter Java vira property no Kotlin.
+                val text = JSONObject(rec.finalResult).optString("text").trim()
                 Log.i(TAG, "ouvi: ${text.ifEmpty { "(nada)" }}")
                 text.ifEmpty { null }
             }
-        }.getOrElse {
-            Log.w(TAG, "falha ao transcrever com o Vosk", it)
+        }.getOrElse { erro ->
+            Log.w(TAG, "falha ao transcrever com o Vosk", erro)
             null
         }
     }
