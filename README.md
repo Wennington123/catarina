@@ -13,7 +13,8 @@ O único acesso à rede é o download dos pesos no primeiro uso — depois disso
 
 | Camada | Tecnologia | Offline |
 |---|---|---|
-| STT | Whistle (16.9 MB) | sim |
+| Voz → texto (PT) | Reconhecedor do Android em `pt-BR` (opt-out) | se o pacote de idioma estiver baixado |
+| Voz → texto (EN) | Whistle (16.9 MB) — **não tem português** | sim |
 | Intenção → ação | Needle 3 (8–29 MB) | sim |
 | Integração | Kotlin + JNI sobre a C API da Cactus | — |
 | Sons | Sintetizados no app (`AudioTrack`, sem fala) | sim |
@@ -75,13 +76,35 @@ código por cima do sprite.
 ## Como funciona
 
 ```
-wake word → AudioRecord 16 kHz mono → Whistle (STT)
-          → filtro de triggers: é um comando conhecido? não → recusa
-          → Needle 3 (tool call) → CallResolver (dedupe) → ToolExecutor → som fofo
+"Ouvir agora" → reconhecedor do Android (pt-BR) → texto
+              → filtro de triggers: é um comando conhecido? não → recusa
+              → Needle 3 (tool call) → CallResolver (dedupe) → ToolExecutor → som fofo
+"Sempre ouvindo" → wake word (Whistle, inglês) → grava → mesmo caminho
 ```
 
 O engine é **process-global e não thread-safe**: o `NeedleEngine` serializa todas
 as chamadas e o `CatarinaBrain` é o único dono da conversa.
+
+## Voz em português (e por que o turno usa o Android)
+
+O STT do Needle é o **Whistle**, e o Whistle **não tem português** — a lista
+oficial é inglês, alemão, francês, espanhol, italiano, holandês e polonês. Com
+ele, fala em PT vira texto sem sentido: nenhum `trigger` casa e **nada é
+executado**. Era esse o "ela não ouve / não faz nada", com o microfone
+funcionando normalmente.
+
+Por isso o turno de voz passa pelo **reconhecedor do Android em `pt-BR`**
+(`AndroidStt`, ligado por padrão nas Configurações): ele entrega o texto e o
+**Needle continua decidindo a ferramenta** localmente — o resto do pipeline não
+muda. Pedimos `EXTRA_PREFER_OFFLINE`, que usa o pacote de idioma já baixado
+quando existe.
+
+- **Custo:** o reconhecedor do sistema costuma ser do Google, então ligado ele
+  quebra o "zero Google". É opt-out: desligando, volta o Whistle local (útil só
+  em inglês).
+- **Wake word:** "Sempre ouvindo" ainda depende do Whistle para ouvir
+  "Catarina", ou seja, a hotword funciona em inglês. KWS dedicado está no
+  roadmap.
 
 ## Comandos que ela entende
 
@@ -232,13 +255,17 @@ empacotamento do `.cact`), pra rodar no notebook. Ver `training/README.md`.
 
 - Inferência nunca toca a rede.
 - Telemetria do engine desligada na build: `NEEDLE_TELEMETRY=0`, `DO_NOT_TRACK=1`.
-- Zero Google / OpenAI no pipeline.
-- Exceção única: o modo **Cérebro na nuvem (API)** é opt-in e manda só o texto
-  transcrito ao provedor configurado — nesse caso não há "zero nuvem".
+- Zero Google / OpenAI **no caminho do engine**: Needle e Whistle rodam local.
+- Exceções, ambas em Configurações: (1) o **STT do Android** para voz em pt-BR —
+  ligado por padrão porque o Whistle não tem português; é o reconhecedor do
+  sistema (normalmente Google) e usa o pacote offline quando existe; (2) o modo
+  **Cérebro na nuvem (API)**, opt-in, que manda só o texto transcrito ao provedor
+  configurado.
 
 ## Status
 
 Implementado: engine/tools/service/assistente, download automático dos pesos,
+voz em pt-BR pelo STT do Android (o Whistle do Needle não tem português),
 mascote em pixel art (sprite sheet em `mascote_anim/`) com bolha flutuante
 opt-in, sons fofos sintetizados (sem fala), banner de capacidades e seção de
 comandos na tela, execução direta (sem confirmação) com filtro por `trigger`,
@@ -260,12 +287,13 @@ Achados do smoke test no A32 e o que ainda depende de fine-tune estão em
 - [x] Banner de capacidades na abertura (dispensável e reabrível)
 - [x] Executa direto no pedido — **sem confirmação** (o gate em PT travava tudo)
 - [x] Seção de comandos na tela + filtro por `trigger` (o que não é comando é recusado)
+- [x] Voz em pt-BR pelo STT do Android (o Whistle do Needle não tem português)
 - [ ] Cérebro via **Termux (ponte ACP)** sobre o `cmd acp` — para quem só tem o
       Command Code e nenhuma API key (ver *Cérebro local ou na nuvem*)
 - [ ] Configurações: escolher entre **API** e **Termux** (os dois modos lado a
       lado, cada um com suas opções)
 - [ ] Fine-tune em português (comandos reais)
-- [ ] KWS dedicado no lugar da wake word por transcrição
+- [ ] KWS dedicado em pt-BR no lugar da wake word por transcrição (hoje a hotword depende do Whistle, só em inglês)
 - [ ] Medir latência / RAM / bateria no dia a dia
 
 Ver `docs/catarina-needle-apk.md` para a documentação completa.

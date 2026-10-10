@@ -12,12 +12,14 @@ import androidx.core.app.NotificationCompat
 import dev.catarina.assistant.CatarinaApp
 import dev.catarina.assistant.MainActivity
 import dev.catarina.assistant.R
+import dev.catarina.assistant.audio.AndroidStt
 import dev.catarina.assistant.audio.AudioCapture
 import dev.catarina.assistant.audio.MascotSound
 import dev.catarina.assistant.audio.MascotSounds
 import dev.catarina.assistant.audio.reactToTurn
 import dev.catarina.assistant.core.CatarinaBrain
 import dev.catarina.assistant.core.CatarinaBrain.Turn
+import dev.catarina.assistant.state.AppSettings
 import dev.catarina.assistant.state.AssistantStateBus
 import dev.catarina.assistant.state.Phase
 import dev.catarina.assistant.wakeword.WhistleWakeWord
@@ -133,9 +135,7 @@ class CatarinaService : Service() {
                 brain.ensureLoaded()
                 AssistantStateBus.set(Phase.HEARING)
                 MascotSounds.play(MascotSound.HEAR)
-                val pcm = withContext(Dispatchers.IO) { capture.recordUtterance() }
-                AssistantStateBus.set(Phase.THINKING)
-                val turn = brain.handleAudio(pcm)
+                val turn = listen()
                 announce(turn)
                 updateNotification(turn.status)
             } catch (t: Throwable) {
@@ -147,6 +147,26 @@ class CatarinaService : Service() {
                 if (listening) startListening()
             }
         }
+    }
+
+    /**
+     * Um turno de voz: por padrao o reconhecedor do Android em pt-BR (o Whistle
+     * nao tem portugues) e o texto segue pro Needle; desligado, grava e manda o
+     * audio direto pro engine.
+     */
+    private suspend fun listen(): Turn {
+        if (AppSettings.androidStt) {
+            val heard = AndroidStt.listen(this)
+            AssistantStateBus.set(Phase.THINKING)
+            return if (heard.isNullOrBlank()) {
+                Turn("Nao entendi o audio.", "Nao entendi.", Turn.Kind.REFUSED)
+            } else {
+                brain.handleText(heard)
+            }
+        }
+        val pcm = withContext(Dispatchers.IO) { capture.recordUtterance() }
+        AssistantStateBus.set(Phase.THINKING)
+        return brain.handleAudio(pcm)
     }
 
     private fun runText(text: String) {

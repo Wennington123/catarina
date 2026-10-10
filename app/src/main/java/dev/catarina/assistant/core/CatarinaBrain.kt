@@ -64,6 +64,12 @@ class CatarinaBrain(private val context: Context) {
                     NeedleEngine.load(needle)
                     NeedleEngine.load(whistle)
                     NeedleEngine.init(systemPrompt = SYSTEM, toolsJson = tools)
+                    // O Whistle so entende en/de/fr/es/it/nl/pl — **nao tem
+                    // portugues** — e antes o idioma nunca era setado (ficava na
+                    // deteccao automatica entre esses 7). Fixamos "en" para o
+                    // caminho do engine; voz em PT vai pelo STT do Android
+                    // (AppSettings.androidStt).
+                    NeedleEngine.setAudio(language = "en")
                 }
             } finally {
                 AssistantStateBus.updateProgress(null)

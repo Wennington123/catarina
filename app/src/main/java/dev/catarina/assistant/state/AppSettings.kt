@@ -15,6 +15,7 @@ object AppSettings {
     private const val KEY_ROOT = "root_enabled"
     private const val KEY_OVERLAY = "overlay_enabled"
     private const val KEY_CAPABILITIES = "capabilities_seen"
+    private const val KEY_ANDROID_STT = "android_stt"
 
     private lateinit var prefs: SharedPreferences
 
@@ -38,6 +39,19 @@ object AppSettings {
     var capabilitiesSeen: Boolean
         get() = prefs.getBoolean(KEY_CAPABILITIES, false)
         set(value) = prefs.edit().putBoolean(KEY_CAPABILITIES, value).apply()
+
+    /**
+     * Voz em portugues: o turno passa pelo reconhecedor do **Android** (pt-BR) em
+     * vez do Whistle, que so entende ingles, alemao, frances, espanhol, italiano,
+     * holandes e polones. **Ligado por padrao** — sem isso o app nao entende uma
+     * palavra em PT (o texto sai como lixo e nada casa com os `triggers`).
+     *
+     * E o unico ponto fora do "zero Google": o reconhecedor do sistema costuma
+     * ser do Google. Desligado, volta pro Whistle local (util so em ingles).
+     */
+    var androidStt: Boolean
+        get() = prefs.getBoolean(KEY_ANDROID_STT, true)
+        set(value) = prefs.edit().putBoolean(KEY_ANDROID_STT, value).apply()
 
     /**
      * Porta unica do root: toggle do usuario E `su` disponivel. O probe do

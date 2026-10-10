@@ -107,10 +107,20 @@ object MascotSounds {
     /**
      * Toca o som e devolve o que aconteceu. O retorno existe pro teste de som na
      * tela: sem `adb`, o app mostra em qual passo parou e o volume de midia.
+     *
+     * Usa `MODE_STREAM`: o modo estatico (com o buffer do tamanho exato do som)
+     * nao inicializa em todo aparelho — era ele que devolvia falha no teste.
      */
     fun play(sound: MascotSound): String {
         val pcm = SoundKit.pcm(sound)
         stop()
+
+        val minBuffer = AudioTrack.getMinBufferSize(
+            SoundKit.SAMPLE_RATE,
+            AudioFormat.CHANNEL_OUT_MONO,
+            AudioFormat.ENCODING_PCM_16BIT,
+        )
+        val want = maxOf(minBuffer, pcm.size * 2)
 
         val track = runCatching {
             AudioTrack.Builder()
@@ -127,25 +137,25 @@ object MascotSounds {
                         .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                         .build(),
                 )
-                .setTransferMode(AudioTrack.MODE_STATIC)
-                .setBufferSizeInBytes(pcm.size * 2)
+                .setTransferMode(AudioTrack.MODE_STREAM)
+                .setBufferSizeInBytes(want)
                 .build()
         }.getOrElse {
             Log.w(TAG, "nao consegui criar o AudioTrack ($sound)", it)
-            return "falhou ao criar o AudioTrack: ${it.message}"
+            return "falhou ao criar o AudioTrack: ${it.message} (buffer=$want)"
         }
 
         if (track.state != AudioTrack.STATE_INITIALIZED) {
             Log.w(TAG, "AudioTrack nao inicializou ($sound)")
             runCatching { track.release() }
-            return "AudioTrack nao inicializou (estado ${track.state})"
+            return "AudioTrack nao inicializou (estado ${track.state}, buffer=$want)"
         }
 
         val written = track.write(pcm, 0, pcm.size)
         if (written <= 0) {
             Log.w(TAG, "write devolveu $written ($sound)")
             runCatching { track.release() }
-            return "write devolveu $written"
+            return "write devolveu $written (buffer=$want)"
         }
 
         current = track
@@ -155,7 +165,7 @@ object MascotSounds {
             runCatching { track.release() }
             return "play falhou: ${it.message}"
         }
-        return "tocou ${pcm.size} amostras (${SoundKit.durationMs(sound)} ms)"
+        return "tocou ${pcm.size} amostras (${SoundKit.durationMs(sound)} ms, buffer=$want)"
     }
 
     /** Interrompe o som atual (ex.: outro comeca, ou o service morre). */

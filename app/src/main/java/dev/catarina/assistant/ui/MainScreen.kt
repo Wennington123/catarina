@@ -41,6 +41,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import dev.catarina.assistant.audio.AndroidStt
 import dev.catarina.assistant.audio.MascotSound
 import dev.catarina.assistant.audio.MascotSounds
 import dev.catarina.assistant.core.RemoteBrain
@@ -83,6 +84,7 @@ fun MainScreen(
     var testResult by remember { mutableStateOf<String?>(null) }
     var showCapabilities by remember { mutableStateOf(!AppSettings.capabilitiesSeen) }
     var soundReport by remember { mutableStateOf<String?>(null) }
+    var androidSttOn by remember { mutableStateOf(AppSettings.androidStt) }
 
     Column(
         modifier = Modifier
@@ -173,6 +175,23 @@ fun MainScreen(
         HorizontalDivider()
         Spacer(Modifier.height(8.dp))
         Text("Configurações", style = MaterialTheme.typography.titleSmall)
+
+        SettingRow(
+            title = "Voz em português (STT do Android)",
+            subtitle = when {
+                !AppSettings.androidStt ->
+                    "Desligado: usa o Whistle local, que não entende português"
+                AndroidStt.available(context) ->
+                    "Ligado: reconhecedor do sistema em pt-BR (quebra o \"zero Google\")"
+                else ->
+                    "Ligado, mas este aparelho não tem reconhecedor de voz"
+            },
+            checked = androidSttOn,
+            onCheckedChange = { on ->
+                AppSettings.androidStt = on
+                androidSttOn = on
+            },
+        )
 
         SettingRow(
             title = "Bolha flutuante",

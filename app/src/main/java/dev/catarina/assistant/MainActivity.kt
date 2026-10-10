@@ -8,12 +8,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import dev.catarina.assistant.audio.AndroidStt
 import dev.catarina.assistant.audio.AudioCapture
 import dev.catarina.assistant.audio.MascotSound
 import dev.catarina.assistant.audio.MascotSounds
 import dev.catarina.assistant.audio.reactToTurn
 import dev.catarina.assistant.core.CatarinaBrain
 import dev.catarina.assistant.service.CatarinaService
+import dev.catarina.assistant.state.AppSettings
 import dev.catarina.assistant.state.AssistantStateBus
 import dev.catarina.assistant.state.Phase
 import dev.catarina.assistant.ui.CatarinaTheme
@@ -79,9 +81,23 @@ class MainActivity : AppCompatActivity() {
                 brain.ensureLoaded()
                 AssistantStateBus.set(Phase.HEARING)
                 MascotSounds.play(MascotSound.HEAR)
-                val pcm = withContext(Dispatchers.IO) { capture.recordUtterance() }
-                AssistantStateBus.set(Phase.THINKING)
-                val turn = brain.handleAudio(pcm)
+                val turn = if (AppSettings.androidStt) {
+                    val heard = AndroidStt.listen(this@MainActivity)
+                    AssistantStateBus.set(Phase.THINKING)
+                    if (heard.isNullOrBlank()) {
+                        CatarinaBrain.Turn(
+                            "Nao entendi o audio.",
+                            "Nao entendi.",
+                            CatarinaBrain.Turn.Kind.REFUSED,
+                        )
+                    } else {
+                        brain.handleText(heard)
+                    }
+                } else {
+                    val pcm = withContext(Dispatchers.IO) { capture.recordUtterance() }
+                    AssistantStateBus.set(Phase.THINKING)
+                    brain.handleAudio(pcm)
+                }
                 AssistantStateBus.updateMessage(turn.status)
                 reactToTurn(turn)
             } catch (t: Throwable) {
