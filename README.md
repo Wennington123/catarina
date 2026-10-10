@@ -36,7 +36,7 @@ app/src/main/
     ├── engine/              # wrapper do engine + parser + schema das tools
     ├── audio/               # captura 16 kHz mono + VAD + SoundKit/MascotSounds
     ├── model/               # download dos pesos com hash
-    ├── tools/               # ToolExecutor + CallResolver (dedupe/gating)
+    ├── tools/               # ToolExecutor + CallResolver (dedupe)
     ├── wakeword/            # detector de wake word
     ├── service/             # CatarinaService (modelo quente + loop)
     ├── state/               # AssistantStateBus (fases p/ o mascote) + AppSettings
@@ -76,7 +76,7 @@ código por cima do sprite.
 
 ```
 wake word → AudioRecord 16 kHz mono → Whistle (STT) → Needle 3 (tool call)
-          → CallResolver (dedupe + confiança) → ToolExecutor → som fofo
+          → CallResolver (dedupe) → ToolExecutor → som fofo
 ```
 
 O engine é **process-global e não thread-safe**: o `NeedleEngine` serializa todas
@@ -133,11 +133,13 @@ existe.
 | `open_app` | abre app por nome | API |
 | `set_ac` | ar-condicionado | `ConsumerIrManager` + `assets/ir/ac.json` |
 | `notify` | notificação | API |
-| `send_sms` | envia SMS | `SEND_SMS` + confirmação |
+| `send_sms` | envia SMS | `SEND_SMS` |
 | `run_shell` | comando (allowlist) | root |
 
-Ações sensíveis (`send_sms`, `run_shell`, `set_ac`) exigem confirmação quando a
-confiança fica abaixo do piso (0.7) — ver `CallResolver`.
+Não há confirmação: se o engine pediu a ferramenta, ela executa. O `CallResolver`
+só remove chamadas duplicadas e, em conflito (mesma ferramenta com argumentos
+diferentes), fica com a primeira. Em português o Needle devolve confiança
+0.02–0.30 — pedir confirmação nesse cenário significava **nunca executar nada**.
 
 O caminho root (`svc` para Wi-Fi/Bluetooth/brilho e o `run_shell`) é **opt-in**:
 só roda com o toggle *Extras (root)* ligado nas Configurações do app — e com
@@ -212,7 +214,8 @@ empacotamento do `.cact`), pra rodar no notebook. Ver `training/README.md`.
 
 Implementado: engine/tools/service/assistente, download automático dos pesos,
 mascote em pixel art (sprite sheet em `mascote_anim/`) com bolha flutuante
-opt-in, sons fofos sintetizados (sem fala), Quick Settings tile, gate de root
+opt-in, sons fofos sintetizados (sem fala), banner de capacidades na abertura,
+execução direta (sem confirmação de ação), Quick Settings tile, gate de root
 opt-in, modo provedor externo (API OpenAI-compatible) opt-in e build remoto via
 Actions. Falta assinatura release.
 Achados do smoke test no A32 e o que ainda depende de fine-tune estão em
@@ -228,7 +231,8 @@ Achados do smoke test no A32 e o que ainda depende de fine-tune estão em
 - [x] Gate de root opt-in (toggle nas Configurações)
 - [x] Cérebro externo opt-in (API OpenAI-compatible com function calling)
 - [x] Sons fofos sintetizados no app (sem fala / TTS)
-- [x] Confirmação por voz que **retoma a ação** ("sim" executa, "não" descarta)
+- [x] Banner de capacidades na abertura (dispensável e reabrível)
+- [x] Executa direto no pedido — **sem confirmação** (o gate em PT travava tudo)
 - [ ] Cérebro via **Termux (ponte ACP)** sobre o `cmd acp` — para quem só tem o
       Command Code e nenhuma API key (ver *Cérebro local ou na nuvem*)
 - [ ] Configurações: escolher entre **API** e **Termux** (os dois modos lado a

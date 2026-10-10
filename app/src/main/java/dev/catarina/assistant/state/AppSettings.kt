@@ -14,6 +14,7 @@ object AppSettings {
     private const val FILE = "catarina_settings"
     private const val KEY_ROOT = "root_enabled"
     private const val KEY_OVERLAY = "overlay_enabled"
+    private const val KEY_CAPABILITIES = "capabilities_seen"
 
     private lateinit var prefs: SharedPreferences
 
@@ -29,6 +30,14 @@ object AppSettings {
     var overlayEnabled: Boolean
         get() = prefs.getBoolean(KEY_OVERLAY, false)
         set(value) = prefs.edit().putBoolean(KEY_OVERLAY, value).apply()
+
+    /**
+     * Banner de capacidades no inicio da tela. Fica `false` ate o usuario
+     * dispensar ("Entendi") — ou seja, aparece em toda abertura ate ele ler.
+     */
+    var capabilitiesSeen: Boolean
+        get() = prefs.getBoolean(KEY_CAPABILITIES, false)
+        set(value) = prefs.edit().putBoolean(KEY_CAPABILITIES, value).apply()
 
     /**
      * Porta unica do root: toggle do usuario E `su` disponivel. O probe do

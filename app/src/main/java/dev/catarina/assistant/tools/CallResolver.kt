@@ -6,35 +6,26 @@ import dev.catarina.assistant.engine.NeedleResponse
 /**
  * Transforma a resposta crua do engine numa decisao. O smoke test no A32
  * mostrou que o modelo pode emitir chamadas duplicadas ou contraditorias
- * (sobretudo em portugues), entao aqui:
+ * (sobretudo em portugues), entao aqui removemos as duplicatas exatas e, quando
+ * a mesma ferramenta aparece com argumentos diferentes, fica so a primeira.
  *
- * - removemos duplicatas exatas;
- * - detectamos conflito (mesma ferramenta, argumentos diferentes);
- * - nunca executamos acao sensivel sem confirmacao;
- * - aplicamos o piso de confianca.
- *
- * Nota: o fine-tune LOCAL nao treina o head de confianca, entao `confidence`
- * vem `None`. Nesse caso agimos (o modelo foi treinado para essas tools), mas
- * acoes sensiveis seguem exigindo confirmacao.
+ * **Nao existe confirmacao**: se o engine pediu uma ferramenta, ela executa.
+ * Em portugues o head de confianca do Needle devolve 0.02-0.30, e exigir
+ * confirmacao nesse cenario significava perguntar "Confirma?" para sempre e
+ * nunca executar nada de verdade.
  */
 object CallResolver {
-
-    /** Acoes que nunca executam sem confirmacao, qualquer que seja a confianca. */
-    private val SENSITIVE = setOf("send_sms", "run_shell", "set_ac")
 
     sealed interface Decision {
         /** Executar as chamadas. */
         data class Act(val calls: List<FunctionCall>) : Decision
 
-        /** Baixa confianca, conflito ou acao sensivel: mostrar e pedir confirmacao. */
-        data class Confirm(val calls: List<FunctionCall>, val reason: String) : Decision
-
         /** Nada a fazer (off-topic). */
         data object Refuse : Decision
     }
 
-    fun resolve(response: NeedleResponse, floor: Double = 0.7): Decision =
-        resolveCalls(response.functionCalls, response.suppressedCalls, response.confidence, floor)
+    fun resolve(response: NeedleResponse): Decision =
+        resolveCalls(response.functionCalls, response.suppressedCalls)
 
     /**
      * Mesma decisao, a partir das chamadas cruas. Usado tambem pelo cerebro
@@ -43,34 +34,16 @@ object CallResolver {
     fun resolveCalls(
         calls: List<FunctionCall>,
         held: List<FunctionCall> = emptyList(),
-        confidence: Double? = null,
-        floor: Double = 0.7,
     ): Decision {
-        val deduped = dedupe(calls)
-        val dedupedHeld = dedupe(held)
-
-        if (deduped.isEmpty() && dedupedHeld.isEmpty()) return Decision.Refuse
-
-        val target = deduped.ifEmpty { dedupedHeld }
-
-        return when {
-            hasConflict(target) -> Decision.Confirm(target, "chamadas conflitantes")
-
-            target.any { it.name in SENSITIVE } -> Decision.Confirm(target, "acao sensivel")
-
-            deduped.isNotEmpty() && (confidence == null || confidence >= floor) -> Decision.Act(deduped)
-
-            else -> Decision.Confirm(
-                target,
-                "confianca ${"%.2f".format(confidence ?: 0.0)} < $floor",
-            )
-        }
+        val target = dedupe(calls).ifEmpty { dedupe(held) }
+        if (target.isEmpty()) return Decision.Refuse
+        return Decision.Act(onePerTool(target))
     }
 
     private fun dedupe(calls: List<FunctionCall>): List<FunctionCall> =
         calls.distinctBy { it.name to it.arguments.toString() }
 
-    /** Conflito = mesma ferramenta com argumentos diferentes. */
-    private fun hasConflict(calls: List<FunctionCall>): Boolean =
-        calls.groupBy { it.name }.any { (_, group) -> group.map { it.arguments.toString() }.distinct().size > 1 }
+    /** Conflito (mesma ferramenta, argumentos diferentes) fica com a primeira. */
+    private fun onePerTool(calls: List<FunctionCall>): List<FunctionCall> =
+        calls.distinctBy { it.name }
 }

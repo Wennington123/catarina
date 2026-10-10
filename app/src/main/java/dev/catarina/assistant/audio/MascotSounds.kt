@@ -9,7 +9,7 @@ import kotlin.math.exp
 import kotlin.math.sin
 
 /** Sons fofos da Catarina. Nao ha fala: sao bipes/arpejos curtos sintetizados. */
-enum class MascotSound { LISTEN, HEAR, HAPPY, SAD, QUESTION, TALK }
+enum class MascotSound { LISTEN, HEAR, HAPPY, SAD, TALK }
 
 /**
  * Sintetiza os sons em PCM 16-bit mono. Tudo gerado no app (nenhum asset), na
@@ -39,7 +39,6 @@ object SoundKit {
             tone(1320f, 1320f, 120),
         )
         MascotSound.SAD -> concat(tone(700f, 600f, 140), gap(30), tone(560f, 430f, 200))
-        MascotSound.QUESTION -> concat(tone(990f, 990f, 80), gap(20), tone(1320f, 1580f, 130))
         MascotSound.TALK -> talk()
     }
 

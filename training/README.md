@@ -82,8 +82,8 @@ adb shell run-as dev.catarina.assistant cp /sdcard/catarina.cact files/models/ne
 ## ⚠️ Importante: confiança
 
 O fine-tune **local** não treina o head de confiança, então o `confidence` volta
-`None`. O `CallResolver` já trata isso: **age** quando não há confiança e a ação
-não é sensível; `send_sms`, `run_shell` e `set_ac` continuam exigindo confirmação.
+`None`. Hoje isso não muda o rumo da ação: o `CallResolver` **não usa confiança** —
+se o engine pediu a ferramenta, ela executa (só dedupe e resolução de conflito).
 
 Se você quiser o `confidence` calibrado de volta, existe o caminho de
 **plataforma** (`needle platform finetune …`): treina o modelo inteiro em 2-bit

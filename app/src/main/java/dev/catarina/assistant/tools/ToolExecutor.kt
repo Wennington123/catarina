@@ -29,8 +29,8 @@ data class ToolResult(val ok: Boolean, val detail: String) {
 }
 
 /**
- * Executa os `function_calls`. Acoes sensiveis (`send_sms`, `run_shell`,
- * `set_ac`) passam antes pelo gating de confianca/confirmacao (ver CallResolver).
+ * Executa os `function_calls`. O que chega aqui executa: o `CallResolver` ja
+ * deduplicou e resolveu conflito, e nao ha confirmacao.
  */
 class ToolExecutor(private val context: Context) {
 

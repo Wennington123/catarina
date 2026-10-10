@@ -74,15 +74,6 @@ class RemoteBrain(
                             CatarinaBrain.Turn.Kind.REFUSED,
                         )
 
-                    is CallResolver.Decision.Confirm -> {
-                        val names = decision.calls.joinToString(", ") { it.name }
-                        return CatarinaBrain.Turn(
-                            "Confirma? $names (${decision.reason})",
-                            "Confirma $names?",
-                            CatarinaBrain.Turn.Kind.CONFIRM,
-                        )
-                    }
-
                     is CallResolver.Decision.Act -> {
                         history.add(reply)
                         for ((id, call) in toolCalls) {

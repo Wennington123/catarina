@@ -21,11 +21,6 @@ fun reactToTurn(turn: Turn) {
             MascotSounds.play(MascotSound.SAD)
         }
 
-        Turn.Kind.CONFIRM -> {
-            AssistantStateBus.flash(Phase.SPEAKING, SoundKit.durationMs(MascotSound.QUESTION))
-            MascotSounds.play(MascotSound.QUESTION)
-        }
-
         Turn.Kind.ANSWER -> {
             AssistantStateBus.flash(Phase.SPEAKING, SoundKit.durationMs(MascotSound.TALK))
             MascotSounds.play(MascotSound.TALK)

@@ -161,14 +161,13 @@ Cobrindo o `jarvis-doc.md`, o catálogo inicial (mapeado p/ o executor):
 | `set_brightness` | `level: int(0-100)` | `Settings.System` / root |
 | `set_volume` | `stream: enum, level: int` | `AudioManager` |
 | `open_app` | `name: str` | `PackageManager`/`am start` |
-| `send_sms` | `to: str, text: str` | `SmsManager` (com confirmação) |
+| `send_sms` | `to: str, text: str` | `SmsManager` |
 | `notify` | `title: str, text: str` | `NotificationManager` |
 | `set_ac` | `power: bool, temp: int(16-30), mode: enum` | **IR blaster** (scripts `send_*` / tiqiaa) |
 | `run_shell` | `cmd: str` | Termux / root (com allowlist) |
 
-Regras de segurança: ações destrutivas/sensíveis (SMS, shell, root) exigem
-**confirmação** quando `confidence` abaixo do limiar (§7). `run_shell` com
-allowlist de binários.
+Regras: **não há confirmação** — se o engine pediu a ferramenta, ela executa.
+`run_shell` continua com allowlist de binários e o caminho root é opt-in (§8).
 
 ## 7. Contrato de resposta e confidence
 
@@ -187,27 +186,24 @@ Cada turno devolve um JSON:
 }
 ```
 
-Roteamento (gating):
+Roteamento:
 
 ```kotlin
 val r = engine.complete(text)
 when {
-  r.calls.isNotEmpty() && r.confidence >= 0.7 -> execute(r.calls)        // age
-  r.calls.isNotEmpty() || r.suppressed.isNotEmpty() -> confirm(r)        // pergunta
-  else -> say("Não consigo fazer isso aqui")                             // recusa
+  r.calls.isNotEmpty() || r.suppressed.isNotEmpty() -> execute(r.bestCalls)  // age
+  else -> say("Não consigo fazer isso aqui")                                // recusa
 }
 ```
 
 - `function_calls` vazio = recusa (off-topic) — **sempre** tratar.
-- **Confirmação retoma a ação.** O `confirm(r)` guarda as chamadas
-  (`CatarinaBrain.pending`): o próximo turno que for um "sim"/"não" curto
-  (≤ 3 palavras, com acento e caixa normalizados) executa ou descarta direto,
-  **sem passar pelo engine**. Qualquer outra fala descarta a confirmação e segue
-  o fluxo normal. Sem isso, todo comando em português (confiança 0.02–0.30,
-  abaixo do piso de 0.7) ficava eternamente no "Confirma?" e **nada era
-  executado** — era o sintoma de "ela não faz nada do que eu peço".
+- **Sem confirmação.** Se há chamada, ela executa. Em português o Needle devolve
+  confiança 0.02–0.30: qualquer piso que exigisse confirmação travava tudo no
+  "Confirma?" e **nada era executado** — era o sintoma de "ela não faz nada do
+  que eu peço". O que ficou no lugar do gate: dedupe e, em conflito (mesma
+  ferramenta com argumentos diferentes), fica a primeira que o modelo pediu.
 - Argumentos só vêm com evidência no texto; campos opcionais podem faltar.
-- `validation.ungrounded` lista campos não ancorados — recusar/confirmar.
+- `validation.ungrounded` lista campos não ancorados — recusar.
 - Environment facts opcionais: `date`, `locale`, `device`, `battery`, `network`,
   `location` (passar como **fatos**, nunca instruções).
 
@@ -240,13 +236,13 @@ Com **root (Magisk)**, amplia: `svc wifi/bluetooth`, `settings put`, acesso a
   (compromete as palavras que duas passadas concordam).
 - Som: a Catarina **não fala**. Ela emite sons curtos sintetizados no app
   (`SoundKit`: senoide com envelope e vibrato; `AudioTrack` estático), um por
-  evento — armar escuta, te ouvir, sucesso, recusa, confirmação e "tagarelar".
+  evento — armar escuta, te ouvir, sucesso, recusa e "tagarelar".
   A boca da mascote anima porque a fase vira `SPEAKING` pela duração do som.
   Toca em `USAGE_MEDIA`/`SONIFICATION` (volume de mídia, previsível).
 - **Se não sair som**, o logcat diz onde parou: a tag `MascotSounds` registra
   cada etapa (criar o `AudioTrack`, inicializar, `write`, `play`). Antes tudo
   ficava dentro de um único `runCatching`, então uma falha virava silêncio sem
-  nenhuma pista. A síntese em si está validada: os seis sons saem com pico
+  nenhuma pista. A síntese em si está validada: os cinco sons saem com pico
   ~16k e RMS ~4,4k (áudio real, não buffer vazio). Checar também o **volume de
   mídia** do aparelho — é ele que rege `USAGE_MEDIA`.
 
@@ -312,8 +308,8 @@ O runner `android-arm64` foi executado direto no Termux com `needle3.cact`
    mas com `confidence` perto de 0 (0.02–0.30) e às vezes duplicada/contraditória.
    Para confiar em PT a sério, treinar com dados reais (`needle finetune`).
 4. **Cuidado com `triggers`:** um request que casa com trigger **emite a chamada
-   mesmo abaixo do piso de confiança**. O app precisa deduplicar chamadas e
-   exigir confirmação em ações sensíveis.
+   mesmo abaixo do piso de confiança**. O app deduplica as chamadas (é o
+   `CallResolver`) — e, sem confirmação, o que passar por ali executa.
 
 **Amostra de resultados:**
 
@@ -357,7 +353,8 @@ nuvem (API)**: qualquer endpoint **OpenAI-compatible** com function calling.
   resultado como `role: tool` e aí recebe a resposta em linguagem natural
   (`Turn.Kind.ANSWER`), que aparece na tela e vira o som de "tagarelar".
 - Histórico multi-turn em memória (24 mensagens, com system prompt fixo).
-- Ações sensíveis seguem o mesmo gating (`send_sms`, `run_shell`, `set_ac`).
+- Sem confirmação também neste modo: vale o mesmo `CallResolver` (dedupe e
+  conflito) — o que o modelo pedir, executa.
 - API key em prefs privadas do app (`MODE_PRIVATE`); `http` liberado só para
   rede local (provedor caseiro), **https** para internet.
 

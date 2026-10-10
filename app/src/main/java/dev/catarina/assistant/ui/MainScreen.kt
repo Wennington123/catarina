@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -76,6 +77,7 @@ fun MainScreen(
     var model by remember { mutableStateOf(AppSettings.providerModel) }
     var apiKey by remember { mutableStateOf(AppSettings.providerApiKey) }
     var testResult by remember { mutableStateOf<String?>(null) }
+    var showCapabilities by remember { mutableStateOf(!AppSettings.capabilitiesSeen) }
 
     Column(
         modifier = Modifier
@@ -85,6 +87,14 @@ fun MainScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(8.dp))
+
+        if (showCapabilities) {
+            CapabilitiesBanner {
+                AppSettings.capabilitiesSeen = true
+                showCapabilities = false
+            }
+            Spacer(Modifier.height(16.dp))
+        }
 
         BabyMascot(phase, progress, Modifier.size(240.dp))
 
@@ -117,6 +127,13 @@ fun MainScreen(
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onGrantPermissions, modifier = Modifier.widthIn(min = 220.dp)) {
             Text("Dar permissões")
+        }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = { showCapabilities = true },
+            modifier = Modifier.widthIn(min = 220.dp),
+        ) {
+            Text("O que ela faz")
         }
 
         Spacer(Modifier.height(24.dp))
@@ -237,6 +254,45 @@ fun MainScreen(
         Spacer(Modifier.height(24.dp))
     }
 }
+
+/**
+ * Banner de abertura: o que ela sabe fazer hoje, em linguagem simples. Some
+ * quando o usuario toca em "Entendi" e pode ser reaberto pelo botao
+ * "O que ela faz".
+ */
+@Composable
+private fun CapabilitiesBanner(onDismiss: () -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text("O que a Catarina faz", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            CAPABILITIES.forEach { item ->
+                Text("• $item", style = MaterialTheme.typography.bodySmall)
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Ela faz na hora, sem pedir confirmação. Chame falando \"Catarina\" " +
+                    "(modo Sempre ouvindo) ou toque em \"Ouvir agora\". Para conversa e " +
+                    "perguntas abertas, ligue o \"Cérebro na nuvem\" nas Configurações.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(onClick = onDismiss, modifier = Modifier.widthIn(min = 160.dp)) {
+                Text("Entendi")
+            }
+        }
+    }
+}
+
+private val CAPABILITIES = listOf(
+    "Liga e desliga o Wi-Fi e o Bluetooth (precisa de root)",
+    "Lanterna, brilho da tela e volume",
+    "Abre apps pelo nome",
+    "Manda SMS e cria notificações",
+    "Liga o ar-condicionado (se o aparelho tiver emissor IR)",
+    "Roda comandos do sistema (com root ativado)",
+)
 
 @Composable
 private fun SettingRow(
