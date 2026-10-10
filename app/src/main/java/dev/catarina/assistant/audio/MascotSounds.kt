@@ -3,6 +3,7 @@ package dev.catarina.assistant.audio
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.util.Log
 import kotlin.math.PI
 import kotlin.math.exp
 import kotlin.math.sin
@@ -85,21 +86,29 @@ object SoundKit {
 }
 
 /**
- * Toca os sons num `AudioTrack` em modo estatico (um som curto por vez). Cada
- * track se libera sozinho no fim da reproducao. Usa `USAGE_MEDIA` +
- * `CONTENT_TYPE_SONIFICATION` pra tocar no volume de midia (previsivel em
- * qualquer aparelho), e nao no stream de assistente, que pode estar mudo.
+ * Toca os sons num `AudioTrack` em modo estatico (um som curto por vez). Usa
+ * `USAGE_MEDIA` + `CONTENT_TYPE_SONIFICATION` pra tocar no volume de midia
+ * (previsivel em qualquer aparelho), e nao no stream de assistente, que pode
+ * estar mudo.
  *
  * O `AudioTrack` emite o som inteiro; a boca da mascote anima porque quem
  * chamou coloca a fase em `SPEAKING` pela duracao do som.
+ *
+ * Cada etapa e registrada no log: antes tudo era engolido por um `runCatching`
+ * unico e uma falha virava silencio sem pista nenhuma. O track fica vivo ate o
+ * proximo som (ou [stop]) — nao ha mais auto-release por marker, que era um
+ * passo a mais entre o `write` e o `play`.
  */
 object MascotSounds {
+
+    private const val TAG = "MascotSounds"
 
     private var current: AudioTrack? = null
 
     fun play(sound: MascotSound) {
         val pcm = SoundKit.pcm(sound)
         stop()
+
         val track = runCatching {
             AudioTrack.Builder()
                 .setAudioAttributes(
@@ -118,29 +127,30 @@ object MascotSounds {
                 .setTransferMode(AudioTrack.MODE_STATIC)
                 .setBufferSizeInBytes(pcm.size * 2)
                 .build()
-        }.getOrNull() ?: return
+        }.getOrElse {
+            Log.w(TAG, "nao consegui criar o AudioTrack ($sound)", it)
+            return
+        }
 
         if (track.state != AudioTrack.STATE_INITIALIZED) {
+            Log.w(TAG, "AudioTrack nao inicializou ($sound)")
             runCatching { track.release() }
             return
         }
 
-        runCatching {
-            track.write(pcm, 0, pcm.size)
-            track.setNotificationMarkerPosition(pcm.size)
-            track.setPlaybackPositionUpdateListener(
-                object : AudioTrack.OnPlaybackPositionUpdateListener {
-                    override fun onMarkerReached(t: AudioTrack?) {
-                        runCatching { t?.release() }
-                        if (current === t) current = null
-                    }
+        val written = track.write(pcm, 0, pcm.size)
+        if (written <= 0) {
+            Log.w(TAG, "write devolveu $written ($sound)")
+            runCatching { track.release() }
+            return
+        }
 
-                    override fun onPeriodicNotification(t: AudioTrack?) = Unit
-                },
-            )
-            current = track
-            track.play()
-        }.onFailure { runCatching { track.release() } }
+        current = track
+        runCatching { track.play() }.onFailure {
+            Log.w(TAG, "play falhou ($sound)", it)
+            current = null
+            runCatching { track.release() }
+        }
     }
 
     /** Interrompe o som atual (ex.: outro comeca, ou o service morre). */

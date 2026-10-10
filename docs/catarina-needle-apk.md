@@ -199,6 +199,13 @@ when {
 ```
 
 - `function_calls` vazio = recusa (off-topic) — **sempre** tratar.
+- **Confirmação retoma a ação.** O `confirm(r)` guarda as chamadas
+  (`CatarinaBrain.pending`): o próximo turno que for um "sim"/"não" curto
+  (≤ 3 palavras, com acento e caixa normalizados) executa ou descarta direto,
+  **sem passar pelo engine**. Qualquer outra fala descarta a confirmação e segue
+  o fluxo normal. Sem isso, todo comando em português (confiança 0.02–0.30,
+  abaixo do piso de 0.7) ficava eternamente no "Confirma?" e **nada era
+  executado** — era o sintoma de "ela não faz nada do que eu peço".
 - Argumentos só vêm com evidência no texto; campos opcionais podem faltar.
 - `validation.ungrounded` lista campos não ancorados — recusar/confirmar.
 - Environment facts opcionais: `date`, `locale`, `device`, `battery`, `network`,
@@ -236,6 +243,12 @@ Com **root (Magisk)**, amplia: `svc wifi/bluetooth`, `settings put`, acesso a
   evento — armar escuta, te ouvir, sucesso, recusa, confirmação e "tagarelar".
   A boca da mascote anima porque a fase vira `SPEAKING` pela duração do som.
   Toca em `USAGE_MEDIA`/`SONIFICATION` (volume de mídia, previsível).
+- **Se não sair som**, o logcat diz onde parou: a tag `MascotSounds` registra
+  cada etapa (criar o `AudioTrack`, inicializar, `write`, `play`). Antes tudo
+  ficava dentro de um único `runCatching`, então uma falha virava silêncio sem
+  nenhuma pista. A síntese em si está validada: os seis sons saem com pico
+  ~16k e RMS ~4,4k (áudio real, não buffer vazio). Checar também o **volume de
+  mídia** do aparelho — é ele que rege `USAGE_MEDIA`.
 
 ## 10. Privacidade e telemetria
 

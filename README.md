@@ -228,12 +228,12 @@ Achados do smoke test no A32 e o que ainda depende de fine-tune estão em
 - [x] Gate de root opt-in (toggle nas Configurações)
 - [x] Cérebro externo opt-in (API OpenAI-compatible com function calling)
 - [x] Sons fofos sintetizados no app (sem fala / TTS)
+- [x] Confirmação por voz que **retoma a ação** ("sim" executa, "não" descarta)
 - [ ] Cérebro via **Termux (ponte ACP)** sobre o `cmd acp` — para quem só tem o
       Command Code e nenhuma API key (ver *Cérebro local ou na nuvem*)
 - [ ] Configurações: escolher entre **API** e **Termux** (os dois modos lado a
       lado, cada um com suas opções)
 - [ ] Fine-tune em português (comandos reais)
-- [ ] Confirmação de ação sensível por voz (hoje só pede e não retoma)
 - [ ] KWS dedicado no lugar da wake word por transcrição
 - [ ] Medir latência / RAM / bateria no dia a dia
 
