@@ -305,6 +305,8 @@ Achados do smoke test no A32 e o que ainda depende de fine-tune estão em
 
 ## Roadmap
 
+### Feito
+
 - [x] Estrutura, engine, JNI, tools, service, assistente
 - [x] Download automático dos pesos + progresso (anel na mascote)
 - [x] Mascote animada (Compose Canvas) + bolha flutuante opt-in
@@ -317,12 +319,56 @@ Achados do smoke test no A32 e o que ainda depende de fine-tune estão em
 - [x] Executa direto no pedido — **sem confirmação** (o gate em PT travava tudo)
 - [x] Seção de comandos na tela + filtro por `trigger` (o que não é comando é recusado)
 - [x] Voz em pt-BR pelo **Vosk** offline (o Whistle do Needle não tem português, e o aparelho não traz reconhecedor do sistema)
-- [ ] Cérebro via **Termux (ponte ACP)** sobre o `cmd acp` — para quem só tem o
-      Command Code e nenhuma API key (ver *Cérebro local ou na nuvem*)
-- [ ] Configurações: escolher entre **API** e **Termux** (os dois modos lado a
-      lado, cada um com suas opções)
+
+### Próximo — os três requisitos
+
+O produto precisa de três coisas: **pouca RAM**, **escuta com a tela apagada** e
+**acesso total ao aparelho**. Cada uma tem um trade-off: escuta contínua custa
+bateria, modelo quente custa RAM, acesso total custa segurança. A voz de volta
+(TTS) fica fora de escopo por enquanto — a saída continua em chime e notificação.
+
+**Fase 0 · Nome e identidade**
+
+- [ ] Repo `aether`: o slug do GitHub não aceita acento, então "Aéther" fica só na exibição
+- [ ] `applicationId` `dev.catarina.assistant` → `dev.aether.assistant` e prefixo `Aether*` — antes de qualquer release, porque depois o app vira outro app
+- [ ] Label, README e docs com "Aéther"
+- Critério: build verde e o APK instala por cima do anterior.
+
+**Fase 1 · Gatilho dedicado**
+
+- [ ] KWS em pt-BR (**sherpa-onnx**, keyword "aether") no lugar da transcrição contínua do Whistle
+- [ ] Whistle fora do runtime: −17 MB e um núcleo livre
+- [ ] `WakeWordDetector` mantém a interface; só a implementação muda
+- Critério: zero falso aceite em 1 h de TV e menos de 2 %/h com a tela apagada.
+
+**Fase 2 · Tela apagada**
+
+- [ ] `VoiceInteractionService` implementado — hoje é stub. Com target 34+, o Android bloqueia FGS de microfone a partir de `BOOT_COMPLETED`; o papel de assistente padrão é o boot permitido
+- [ ] Isenção de otimização de bateria + `WAKE_LOCK` parcial na captura (o `WAKE_LOCK` está declarado e nunca usado)
+- [ ] Retomar a escuta após reboot: papel de assistente ou overlay visível (no Android 15+ a isenção por `SYSTEM_ALERT_WINDOW` exige janela visível)
+- Critério: 8 h com mais de 80 % de uptime do serviço.
+
+**Fase 3 · RAM**
+
+- [ ] Medir PSS no A32 e mostrar na UI (`ActivityManager.getProcessMemoryInfo`)
+- [ ] Vosk carregado no gatilho e descarregado após 5 min ocioso: −50 MB parado
+- [ ] Testar Needle de 4 camadas (8 MB) contra o de 20 (29 MB)
+- Meta: 120 MB de PSS com a tela apagada e pico de 160 MB no turno. O pico de 76 MB do engine não é a JVM: daemon em Rust não resolve RAM aqui.
+
+**Fase 4 · Acesso total**
+
+- [ ] Shell root persistente com **libsu**, no lugar do `su -c` por comando
+- [ ] **Shizuku** (uid 2000) como caminho sem root: pacotes, `appops`, `input`, `cmd`
+- [ ] `run_shell` recebe `argv` tipado, não string livre; `cmd`, `am` e `input` seguem no allowlist
+- Decisão de produto: a voz executa qualquer ação, como hoje, sem tier de confirmação. O risco de terceiro na sala controlar o aparelho fica aceito e documentado.
+- Critério: shell root responde em menos de 100 ms e não pede Magisk a cada ação.
+
+**Fase 5 · Precisão**
+
 - [ ] Fine-tune em português (comandos reais)
-- [ ] KWS dedicado em pt-BR no lugar da wake word por transcrição (hoje a hotword depende do Whistle, só em inglês)
-- [ ] Medir latência / RAM / bateria no dia a dia
+- [ ] Roteamento por embedding (`needle_embed`) no lugar dos 10 regex de `triggers`
+- [ ] Cérebro via **Termux (ponte ACP)** sobre o `cmd acp` — para quem só tem o Command Code e nenhuma API key
+- [ ] Configurações: escolher entre **API** e **Termux**, com as opções de cada modo
+- [ ] Medir latência no dia a dia (hoje há 1,2 s fixos por turno: 400 ms de cauda do gatilho, 100 ms de troca de microfone e 700 ms de fim de fala)
 
 Ver `docs/catarina-needle-apk.md` para a documentação completa.
